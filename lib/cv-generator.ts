@@ -257,6 +257,14 @@ body { background: #E8E0D8; font-family: 'Libre Franklin', sans-serif; padding: 
             <div class="entry-body">[SHORT DESCRIPTION if any]</div>
           </div>
           ]
+
+EDUCATION RULES (strictly enforced):
+- ALWAYS include BSc and MSc degrees — these are NEVER cut, even if the 2600 char limit is tight.
+- If the character limit is at risk, shorten the review text instead — education degrees take priority.
+- Within education entries: prefer higher degrees (MSc > BSc > HBO > MBO > VWO/Havo) and more recent over older.
+- For each degree: always show institution, title, period, and graduation status. Thesis and courses are optional and can be shortened or removed to save space.
+- Never omit a university degree to make room for secondary school or short courses.
+- If both BSc and MSc are present, always show both. A completed HBO counts as equivalent to BSc.
         </div>
       </div>
     </div>
@@ -389,7 +397,7 @@ INSTRUCTIONS FOR FILLING IN THE TEMPLATE:
 1. Replace ALL [PLACEHOLDER] markers with real content derived from the candidate data provided.
 2. Use the PHOTO PLACEHOLDER provided above exactly — do not modify it.
 3. Use the CONTACT BLOCKS provided above exactly — do not modify them.
-4. Page 1 right column: "${reviewLabel}" text + Education. Count chars, stay ≤ 2600.
+4. Page 1 right column: "${reviewLabel}" text + Education. Count chars, stay ≤ 2600. When counting characters for the 2600 limit on page 1: if you are close to the limit, shorten the review paragraphs first. Education (BSc/MSc) is non-negotiable.
 5. Page 2 right column: Skills (pills) + Work Experience. Count chars, stay ≤ 2600. Cut bullet points or entries if needed.
 6. Page 3 right column: Projects only. Count chars, stay ≤ 2600. Cut descriptions if needed.
 7. If data is missing for a section, use reasonable professional placeholders.
