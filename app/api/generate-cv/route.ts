@@ -51,9 +51,9 @@ export async function PATCH(request: NextRequest) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { candidateId, currentHtml, instruction } = await request.json()
+    const { candidateId, currentHtml, instruction, sectionNotes } = await request.json()
 
-    const html = await refineCV(currentHtml, instruction)
+    const html = await refineCV(currentHtml, instruction ?? '', sectionNotes)
 
     // Save refined HTML
     await supabase

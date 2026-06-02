@@ -426,14 +426,45 @@ Follow these instructions while respecting all page limits and layout rules abov
   return html.trim()
 }
 
-export async function refineCV(currentHtml: string, instruction: string): Promise<string> {
+export async function refineCV(
+  currentHtml: string,
+  instruction: string,
+  sectionNotes?: Record<string, string>
+): Promise<string> {
+  const sectionLabels: Record<string, string> = {
+    review: 'Beoordeling/Review',
+    opleiding: 'Opleiding',
+    relevanteSkills: 'Relevante skills (sidebar)',
+    interesses: 'Interesses & hobbies',
+    talen: 'Talen',
+    skills: 'Skills (pagina 2)',
+    werkervaring: 'Werkervaring',
+    projecten: 'Projecten',
+  }
+
+  let userContent: string
+
+  if (sectionNotes) {
+    const nonEmptyNotes = Object.entries(sectionNotes).filter(([, v]) => v.trim())
+    if (nonEmptyNotes.length > 0) {
+      const noteLines = nonEmptyNotes
+        .map(([k, v]) => `- ${sectionLabels[k] ?? k}: ${v}`)
+        .join('\n')
+      userContent = `Refine the following sections of the CV based on these instructions. Keep all other sections exactly as they are. Respect all page limits (≤2600 chars per right column per page) and layout rules.\n\nSECTION-SPECIFIC INSTRUCTIONS:\n${noteLines}\n\nCurrent CV HTML:\n\n${currentHtml}\n\nReturn the complete updated HTML only, starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no explanation.`
+    } else {
+      userContent = `Here is the current CV HTML:\n\n${currentHtml}\n\nPlease make the following change: ${instruction}\n\nReturn the complete updated HTML only, starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no explanation.`
+    }
+  } else {
+    userContent = `Here is the current CV HTML:\n\n${currentHtml}\n\nPlease make the following change: ${instruction}\n\nReturn the complete updated HTML only, starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no explanation.`
+  }
+
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 8000,
     messages: [
       {
         role: 'user',
-        content: `Here is the current CV HTML:\n\n${currentHtml}\n\nPlease make the following change: ${instruction}\n\nReturn the complete updated HTML only, starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no explanation.`,
+        content: userContent,
       },
     ],
     system: 'You are a professional CV designer for Harvest Talent. Modify the provided HTML CV as instructed. Return ONLY the complete HTML document starting with <!DOCTYPE html>. No markdown fences, no explanation.',

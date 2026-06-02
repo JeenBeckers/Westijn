@@ -28,6 +28,17 @@ export default function CandidateDetailPage() {
   const [refineText, setRefineText] = useState('')
   const [refining, setRefining] = useState(false)
   const [generationNotes, setGenerationNotes] = useState('')
+  const [sectionNotesOpen, setSectionNotesOpen] = useState(false)
+  const [sectionNotes, setSectionNotes] = useState<Record<string, string>>({
+    review: '',
+    opleiding: '',
+    relevanteSkills: '',
+    interesses: '',
+    talen: '',
+    skills: '',
+    werkervaring: '',
+    projecten: '',
+  })
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -133,6 +144,33 @@ export default function CandidateDetailPage() {
       const { html } = await res.json()
       setCandidate(prev => prev ? { ...prev, cv_html: html } : null)
       setRefineText('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verfijnen mislukt')
+    } finally {
+      setRefining(false)
+    }
+  }
+
+  async function handleRefineBySections() {
+    if (!candidate?.cv_html) return
+    const hasNotes = Object.values(sectionNotes).some(v => v.trim())
+    if (!hasNotes) return
+    setRefining(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/generate-cv', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateId: candidate.id,
+          currentHtml: candidate.cv_html,
+          instruction: '',
+          sectionNotes,
+        }),
+      })
+      if (!res.ok) throw new Error('Verfijnen mislukt')
+      const { html } = await res.json()
+      setCandidate(prev => prev ? { ...prev, cv_html: html } : null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verfijnen mislukt')
     } finally {
@@ -335,6 +373,62 @@ export default function CandidateDetailPage() {
                         </Button>
                       </div>
                     </Card>
+
+                    {/* Per-section refinement */}
+                    <div style={{ background: '#F2EBE5' }} className="rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => setSectionNotesOpen(o => !o)}
+                        className="w-full flex items-center justify-between px-4 py-3 text-left"
+                        style={{ background: 'transparent' }}
+                      >
+                        <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#092B13' }}>
+                          Verfijn per sectie
+                        </span>
+                        <span style={{ color: '#092B13', fontSize: '14px' }}>
+                          {sectionNotesOpen ? '▾' : '▸'}
+                        </span>
+                      </button>
+
+                      {sectionNotesOpen && (
+                        <div className="px-4 pb-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {([
+                              { key: 'review', label: 'Beoordeling' },
+                              { key: 'opleiding', label: 'Opleiding' },
+                              { key: 'relevanteSkills', label: 'Relevante skills' },
+                              { key: 'interesses', label: 'Interesses & hobbies' },
+                              { key: 'talen', label: 'Talen' },
+                              { key: 'skills', label: 'Skills (pagina 2)' },
+                              { key: 'werkervaring', label: 'Werkervaring' },
+                              { key: 'projecten', label: 'Projecten' },
+                            ] as { key: string; label: string }[]).map(({ key, label }) => (
+                              <div key={key}>
+                                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#092B13', marginBottom: '4px' }}>
+                                  {label}
+                                </label>
+                                <textarea
+                                  value={sectionNotes[key]}
+                                  onChange={(e) => setSectionNotes(prev => ({ ...prev, [key]: e.target.value }))}
+                                  placeholder="Bijv. maak korter / voeg X toe / verwijder Y…"
+                                  style={{ minHeight: '60px', background: '#FFFBF5', border: '1px solid rgba(9,40,18,0.18)' }}
+                                  className="w-full px-3 py-2 text-sm rounded focus:outline-none focus:ring-2 focus:ring-harvest-green resize-none"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-4">
+                            <Button
+                              onClick={handleRefineBySections}
+                              loading={refining}
+                              disabled={!Object.values(sectionNotes).some(v => v.trim())}
+                              style={{ background: '#092B13', color: '#fff' }}
+                            >
+                              Verfijn CV
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <Card className="flex items-center justify-center py-20">
