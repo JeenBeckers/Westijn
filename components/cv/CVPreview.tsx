@@ -23,14 +23,27 @@ export function CVPreview({ html, candidateName }: CVPreviewProps) {
   }
 
   function handlePrint() {
-    const printWindow = window.open('', '_blank')
-    if (!printWindow || !html) return
-    printWindow.document.write(html)
-    printWindow.document.close()
-    printWindow.focus()
-    setTimeout(() => {
-      printWindow.print()
-    }, 500)
+    if (!html) return;
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) return;
+
+    // Ensure body has no extra padding/margin
+    const printHtml = html.replace(
+      '<body>',
+      '<body style="margin:0;padding:0;">'
+    );
+
+    printWindow.document.open();
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
+
+    // Wait for fonts and images to load before printing
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+      }, 800);
+    };
   }
 
   return (

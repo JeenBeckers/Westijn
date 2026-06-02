@@ -48,6 +48,13 @@ OUTPUT RULES:
 - Review label: "${reviewLabel}"
 - All text content must be in ${isNl ? 'Dutch' : 'English'} unless it is a proper name or technical term
 
+CRITICAL: You MUST generate exactly 3 <section class="page"> elements — no more, no less.
+- Page 1: sidebar + main with review and education
+- Page 2: no-sidebar, skills and work experience
+- Page 3: no-sidebar, projects
+If content is too long, cut it to fit. Never add a 4th page.
+Each page has height: 1123px and overflow: hidden — content that doesn't fit will be cut off.
+
 PAGE CONTENT RULES (FIXED — never mix across pages):
 - Page 1 right column: "${reviewLabel}" paragraph + Education section ONLY — MAX 2600 characters including spaces
 - Page 2 right column: Skills section + Work Experience section ONLY — MAX 2600 characters including spaces
@@ -79,6 +86,7 @@ body { background: #E8E0D8; font-family: 'Libre Franklin', sans-serif; padding: 
 
 /* PAGE */
 .page { width: 794px; height: 1123px; background: #FFFBF5; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.18); overflow: hidden; }
+
 
 /* HEADER */
 .page-header { background: #092B13; height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; flex-shrink: 0; }
@@ -153,9 +161,19 @@ body { background: #E8E0D8; font-family: 'Libre Franklin', sans-serif; padding: 
 .pill.soft { background: transparent; color: #092812; border: 1px solid rgba(9,40,18,0.30); }
 
 @media print {
-  body { background: #FFFBF5; padding: 0; }
-  .pages { gap: 0; }
-  .page { box-shadow: none; page-break-after: always; }
+  @page { size: A4; margin: 0; }
+  html, body { margin: 0; padding: 0; background: white; }
+  .pages { gap: 0; display: block; }
+  .page {
+    box-shadow: none;
+    page-break-after: always;
+    page-break-inside: avoid;
+    width: 794px;
+    height: 1123px;
+    overflow: hidden;
+    margin: 0;
+  }
+  .page:last-child { page-break-after: auto; }
 }
 </style>
 </head>
