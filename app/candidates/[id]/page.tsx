@@ -1,0 +1,343 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { Header } from '@/components/layout/Header'
+import { Sidebar } from '@/components/layout/Sidebar'
+import { CVPreview } from '@/components/cv/CVPreview'
+import { Badge } from '@/components/ui/Badge'
+import Button from '@/components/ui/Button'
+import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
+import { Wand2, Mail, Send, ArrowLeft, User, MapPin, Clock, Globe } from 'lucide-react'
+import type { Candidate, Profile, IntakeResponse } from '@/types'
+
+export default function CandidateDetailPage() {
+  const params = useParams()
+  const router = useRouter()
+  const supabase = createClient()
+
+  const [candidate, setCandidate] = useState<Candidate | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [intakeResponse, setIntakeResponse] = useState<IntakeResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [sendingIntake, setSendingIntake] = useState(false)
+  const [intakeEmail, setIntakeEmail] = useState('')
+  const [intakeSent, setIntakeSent] = useState(false)
+  const [refineText, setRefineText] = useState('')
+  const [refining, setRefining] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { router.push('/login'); return }
+
+      const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+      setProfile(profileData)
+
+      const { data: candidateData } = await supabase
+        .from('candidates')
+        .select('*')
+        .eq('id', params.id)
+        .single()
+      setCandidate(candidateData)
+
+      // Get intake response if exists
+      const { data: intakeForm } = await supabase
+        .from('intake_forms')
+        .select('id, completed_at')
+        .eq('candidate_id', params.id)
+        .not('completed_at', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (intakeForm) {
+        const { data: response } = await supabase
+          .from('intake_responses')
+          .select('*')
+          .eq('intake_form_id', intakeForm.id)
+          .single()
+        setIntakeResponse(response)
+      }
+
+      setLoading(false)
+    }
+    load()
+  }, [params.id])
+
+  async function handleGenerateCV() {
+    if (!candidate) return
+    setGenerating(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/generate-cv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateId: candidate.id,
+          intakeData: intakeResponse?.responses,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Genereren mislukt')
+      }
+      const { html } = await res.json()
+      setCandidate(prev => prev ? { ...prev, cv_html: html } : null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Genereren mislukt')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function handleSendIntake() {
+    if (!candidate || !intakeEmail) return
+    setSendingIntake(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/send-intake', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidateId: candidate.id, email: intakeEmail }),
+      })
+      if (!res.ok) throw new Error('Versturen mislukt')
+      setIntakeSent(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Versturen mislukt')
+    } finally {
+      setSendingIntake(false)
+    }
+  }
+
+  async function handleRefineCV() {
+    if (!candidate?.cv_html || !refineText.trim()) return
+    setRefining(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/generate-cv', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateId: candidate.id,
+          currentHtml: candidate.cv_html,
+          instruction: refineText,
+        }),
+      })
+      if (!res.ok) throw new Error('Verfijnen mislukt')
+      const { html } = await res.json()
+      setCandidate(prev => prev ? { ...prev, cv_html: html } : null)
+      setRefineText('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verfijnen mislukt')
+    } finally {
+      setRefining(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-harvest-bg">
+        <div className="animate-spin w-8 h-8 border-2 border-harvest-green border-t-transparent rounded-full" />
+      </div>
+    )
+  }
+
+  if (!candidate) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-harvest-bg">
+        <p className="text-harvest-muted">Kandidaat niet gevonden</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex min-h-screen">
+      <Sidebar profile={profile} />
+      <div className="flex-1 flex flex-col">
+        <Header profile={profile} />
+        <main className="flex-1 p-8">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+              <button onClick={() => router.push('/dashboard')} className="text-harvest-muted hover:text-harvest-dark">
+                <ArrowLeft size={20} />
+              </button>
+              <div className="flex-1">
+                <h1 className="font-serif text-2xl text-harvest-dark">
+                  {candidate.first_name} {candidate.last_name}
+                </h1>
+                <p className="text-harvest-green text-sm font-medium">{candidate.role}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {intakeResponse && <Badge variant="success">Intake ontvangen</Badge>}
+                {candidate.cv_html && <Badge variant="info">CV gegenereerd</Badge>}
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-50 border border-harvest-error rounded text-harvest-error text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left panel */}
+              <div className="space-y-4">
+                {/* Candidate info */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Kandidaatgegevens</CardTitle>
+                  </CardHeader>
+                  <div className="space-y-3 text-sm">
+                    {candidate.photo_url && (
+                      <img
+                        src={candidate.photo_url}
+                        alt="Foto"
+                        className="w-20 h-20 rounded-full object-cover border-2 border-harvest-brown mb-3"
+                      />
+                    )}
+                    <div className="flex items-center gap-2 text-harvest-muted">
+                      <User size={14} />
+                      <span>{candidate.age ? `${candidate.age} jaar` : 'Leeftijd onbekend'}</span>
+                    </div>
+                    {candidate.city && (
+                      <div className="flex items-center gap-2 text-harvest-muted">
+                        <MapPin size={14} />
+                        <span>{candidate.city}</span>
+                      </div>
+                    )}
+                    {candidate.availability && (
+                      <div className="flex items-center gap-2 text-harvest-muted">
+                        <Clock size={14} />
+                        <span>{candidate.availability}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-harvest-muted">
+                      <Globe size={14} />
+                      <span>{candidate.language === 'nl' ? 'Nederlands' : 'English'}</span>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Actions */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Acties</CardTitle>
+                  </CardHeader>
+                  <div className="space-y-3">
+                    <Button
+                      onClick={handleGenerateCV}
+                      loading={generating}
+                      className="w-full"
+                    >
+                      <Wand2 size={16} className="mr-2" />
+                      {candidate.cv_html ? 'CV opnieuw genereren' : 'CV genereren'}
+                    </Button>
+
+                    <div className="pt-3 border-t border-harvest-bg">
+                      <p className="text-xs font-medium text-harvest-dark mb-2">Intake versturen</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="email"
+                          value={intakeEmail}
+                          onChange={(e) => setIntakeEmail(e.target.value)}
+                          placeholder="email@kandidaat.nl"
+                          className="flex-1 px-2 py-1.5 text-sm bg-harvest-bg border border-harvest-bg rounded focus:outline-none focus:ring-1 focus:ring-harvest-green"
+                        />
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleSendIntake}
+                          loading={sendingIntake}
+                          disabled={!intakeEmail}
+                        >
+                          <Send size={14} />
+                        </Button>
+                      </div>
+                      {intakeSent && (
+                        <p className="text-xs text-green-600 mt-1">Verstuurd!</p>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Intake response summary */}
+                {intakeResponse && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Intake ontvangen</CardTitle>
+                    </CardHeader>
+                    <div className="text-sm text-harvest-muted space-y-1">
+                      {intakeResponse.responses.self_introduction && (
+                        <p className="italic text-harvest-dark">
+                          &ldquo;{intakeResponse.responses.self_introduction}&rdquo;
+                        </p>
+                      )}
+                      <p>{intakeResponse.responses.education?.length || 0} opleidingen</p>
+                      <p>{intakeResponse.responses.work_experience?.length || 0} ervaringen</p>
+                      <p>{intakeResponse.responses.skills?.length || 0} vaardigheden</p>
+                    </div>
+                  </Card>
+                )}
+              </div>
+
+              {/* Right panel - CV Preview */}
+              <div className="lg:col-span-2 space-y-4">
+                {candidate.cv_html ? (
+                  <>
+                    <CVPreview
+                      html={candidate.cv_html}
+                      candidateName={`${candidate.first_name} ${candidate.last_name}`}
+                    />
+
+                    {/* Refine CV */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>CV verfijnen</CardTitle>
+                      </CardHeader>
+                      <div className="flex gap-3">
+                        <input
+                          type="text"
+                          value={refineText}
+                          onChange={(e) => setRefineText(e.target.value)}
+                          placeholder="Bijv: Maak de beoordeling korter, voeg hobby&apos;s toe..."
+                          className="flex-1 px-3 py-2 text-sm bg-harvest-bg border border-harvest-bg rounded focus:outline-none focus:ring-2 focus:ring-harvest-green"
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleRefineCV() }}
+                        />
+                        <Button
+                          onClick={handleRefineCV}
+                          loading={refining}
+                          disabled={!refineText.trim()}
+                        >
+                          Aanpassen
+                        </Button>
+                      </div>
+                    </Card>
+                  </>
+                ) : (
+                  <Card className="flex items-center justify-center py-20">
+                    <div className="text-center">
+                      <Wand2 size={40} className="text-harvest-brown mx-auto mb-3" />
+                      <h3 className="font-serif text-lg text-harvest-dark mb-2">Nog geen CV</h3>
+                      <p className="text-harvest-muted text-sm mb-4">
+                        Klik op &ldquo;CV genereren&rdquo; om een professioneel CV te maken.
+                      </p>
+                      <Button onClick={handleGenerateCV} loading={generating}>
+                        <Wand2 size={16} className="mr-2" />
+                        CV genereren
+                      </Button>
+                    </div>
+                  </Card>
+                )}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  )
+}
