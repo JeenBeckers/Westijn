@@ -404,6 +404,20 @@ INSTRUCTIONS FOR FILLING IN THE TEMPLATE:
   // Also strip any leading/trailing backtick-only fences
   html = html.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '')
 
+  // Post-process: ensure the photo placeholder is replaced with the actual photo tag
+  // (Claude may not always follow the instruction to use the placeholder exactly)
+  html = html.replace(/\[PHOTO_PLACEHOLDER\]/g, photoTag)
+
+  // Also handle the case where Claude leaves the photo-wrap empty or uses a wrong src
+  // If the candidate has a photo_url, ensure it appears in the img tag within photo-wrap
+  if (candidate.photo_url) {
+    // Replace any placeholder img src that Claude might have invented
+    html = html.replace(
+      /(<div class="photo-wrap">[^<]*<img[^>]+src=")(?!https?:\/\/)[^"]*("[^>]*>)/g,
+      `$1${candidate.photo_url}$2`
+    )
+  }
+
   return html.trim()
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { Download, Printer, Code } from 'lucide-react'
 import Button from '@/components/ui/Button'
 
@@ -23,9 +23,14 @@ export function CVPreview({ html, candidateName }: CVPreviewProps) {
   }
 
   function handlePrint() {
-    const iframe = iframeRef.current
-    if (!iframe) return
-    iframe.contentWindow?.print()
+    const printWindow = window.open('', '_blank')
+    if (!printWindow || !html) return
+    printWindow.document.write(html)
+    printWindow.document.close()
+    printWindow.focus()
+    setTimeout(() => {
+      printWindow.print()
+    }, 500)
   }
 
   return (

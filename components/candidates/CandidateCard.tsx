@@ -58,9 +58,12 @@ export function CandidateCard({ candidate }: CandidateCardProps) {
                   <Calendar size={10} className="mr-1" /> Intake verstuurd
                 </Badge>
               ) : (
-                <Badge variant="default">Nieuw</Badge>
+                <>
+                  <Badge variant="default">Nieuw</Badge>
+                  <Badge variant="default">Nog geen CV</Badge>
+                </>
               )}
-              <Badge variant="info">{candidate.language.toUpperCase()}</Badge>
+              {candidate.language && <Badge variant="info">{candidate.language.toUpperCase()}</Badge>}
             </div>
 
             <div className="mt-3 pt-3 border-t border-harvest-bg flex items-center justify-between">
