@@ -1,70 +1,386 @@
 import { anthropic } from './anthropic'
 import type { Candidate, CVData } from '@/types'
 
-const CONTACT_PERSONS: Record<string, { name: string; email: string; phone: string }> = {
-  marlie: { name: 'Marlie Ekdom', email: 'marlie@harvesttalent.nl', phone: '+31 6 12 34 56 78' },
-  julieta: { name: 'Julieta van Hierden', email: 'julieta@harvesttalent.nl', phone: '+31 6 87 65 43 21' },
-  beiden: { name: 'Marlie Ekdom & Julieta van Hierden', email: 'info@harvesttalent.nl', phone: '+31 6 12 34 56 78' },
+const CONTACT_PERSONS: Record<string, { name: string; email: string; phone: string }[]> = {
+  marlie: [{ name: 'Marlie Ekdom', email: 'marlie@harvesttalent.nl', phone: '+31 6 38596717' }],
+  julieta: [{ name: 'Julieta van Hierden', email: 'julieta@harvesttalent.nl', phone: '+31 6 51759566' }],
+  beiden: [
+    { name: 'Marlie Ekdom', email: 'marlie@harvesttalent.nl', phone: '+31 6 38596717' },
+    { name: 'Julieta van Hierden', email: 'julieta@harvesttalent.nl', phone: '+31 6 51759566' },
+  ],
+}
+
+function buildContactHTML(contacts: { name: string; email: string; phone: string }[]): string {
+  return contacts.map(c => `
+    <div class="contact-block">
+      <div class="contact-name">${c.name}</div>
+      <div class="contact-line">${c.phone}</div>
+      <div class="contact-line">${c.email}</div>
+    </div>`).join('\n')
 }
 
 export async function generateCV(candidate: Candidate, intakeData?: CVData): Promise<string> {
-  const contact = CONTACT_PERSONS[candidate.contact_person] || CONTACT_PERSONS.marlie
+  const contacts = CONTACT_PERSONS[candidate.contact_person] || CONTACT_PERSONS.marlie
   const isNl = candidate.language === 'nl'
   const reviewLabel = candidate.review_tone === 'formal'
-    ? (isNl ? 'Beoordeling' : 'Assessment')
+    ? (isNl ? '— Beoordeling' : '— Review')
     : (isNl ? `Over ${candidate.first_name}` : `About ${candidate.first_name}`)
 
-  const cvData = intakeData || candidate.cv_json || {}
+  const cvData: CVData = { ...(candidate.cv_json || {}), ...(intakeData || {}) } as CVData
+  const fullName = `${candidate.first_name} ${candidate.last_name}`
+  const photoTag = candidate.photo_url
+    ? `<img src="${candidate.photo_url}" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 18%;display:block;">`
+    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:'Source Serif 4',serif;font-size:64px;color:rgba(9,40,18,0.32);">${candidate.first_name[0]}${candidate.last_name[0]}</div>`
 
-  const systemPrompt = `You are a professional CV designer for Harvest Talent, a Dutch recruitment agency. Generate a complete, self-contained HTML CV (3 A4 pages) with inline styles only. Use the exact Harvest brand colors and fonts specified. Output ONLY valid HTML starting with <!DOCTYPE html>.`
+  const contactBlocksHTML = buildContactHTML(contacts)
 
-  const userPrompt = `Generate a professional CV in HTML for ${candidate.first_name} ${candidate.last_name} applying as ${candidate.role} at Harvest Talent.
+  const systemPrompt = `You are a professional CV generator for Harvest Talent. Output ONLY a complete, valid HTML document. No markdown, no code fences, no explanation. Start with <!DOCTYPE html> and end with </html>.`
+
+  const userPrompt = `Generate a Harvest Talent CV HTML document for ${fullName}.
 
 CANDIDATE DATA:
 ${JSON.stringify({ ...candidate, ...cvData }, null, 2)}
 
-STRICT PAGE RULES:
-- Page 1: "${reviewLabel}" section + Education ONLY. Max 2600 characters in right column.
-- Page 2: Skills + Work Experience ONLY. Max 2600 characters in right column.
-- Page 3: Projects ONLY. Max 2600 characters in right column.
-- Left column content does NOT count toward character limits.
-- These page assignments are FIXED - never mix content across pages.
+OUTPUT RULES:
+- Output ONLY the complete HTML document, starting with <!DOCTYPE html>
+- No markdown, no \`\`\`html fences, no explanations before or after
+- Language: ${isNl ? 'Dutch (Nederlands)' : 'English'}
+- Review label: "${reviewLabel}"
+- All text content must be in ${isNl ? 'Dutch' : 'English'} unless it is a proper name or technical term
 
-CV STRUCTURE (3 pages, each 794px × 1123px, displayed as flex-column):
-Each page has:
-- Left column (background: #092B13, color: white, width: 200px, padding: 24px):
-  * Page 1 only: circular photo (120px) placeholder or photo_url if available
-  * Candidate name in 'Source Serif 4' serif font, 20px, white
-  * Role in small caps, 11px, #B8865F
-  * Divider in #B8865F
-  * Contact info (city, availability)
-  * Language skills
-  * Hobbies
-  * Bottom: Harvest logo text "HARVEST" in #B8865F + contact person: ${contact.name}, ${contact.email}, ${contact.phone}
-- Right column (background: #FFFBF5, flex: 1, padding: 40px):
-  * Page-specific content per rules above
-  * Fonts: 'Libre Franklin' for body, 'Source Serif 4' for headings
-  * Section headings in #092B13, bordered bottom with #B8865F
-  * Body text in #5b5750
-  * Accent color #B8865F for highlights and decorations
+PAGE CONTENT RULES (FIXED — never mix across pages):
+- Page 1 right column: "${reviewLabel}" paragraph + Education section ONLY — MAX 2600 characters including spaces
+- Page 2 right column: Skills section + Work Experience section ONLY — MAX 2600 characters including spaces
+- Page 3 right column: Projects section ONLY — MAX 2600 characters including spaces
+- Left/sidebar column does NOT count toward character limits
+- Count characters carefully and cut/summarize content to stay within limits
 
-LANGUAGE: ${isNl ? 'Dutch (Nederlands)' : 'English'}
-REVIEW SECTION LABEL: "${reviewLabel}"
-CONTACT PERSON: ${contact.name} | ${contact.email} | ${contact.phone}
+PHOTO PLACEHOLDER (use exactly as-is — DO NOT change):
+${photoTag}
 
-Each page must have:
-- display: flex; width: 794px; height: 1123px; overflow: hidden; margin: 0 auto 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-- Page number bottom right of right column
-- Harvest contact info bottom of left column
+CONTACT BLOCKS (use exactly as-is — DO NOT change):
+${contactBlocksHTML}
 
-Include Google Fonts link in <head>:
-<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700&family=Source+Serif+4:wght@400;600;700&display=swap" rel="stylesheet">
+Use the following EXACT HTML structure and CSS:
 
-Generate realistic, professional content based on the data provided. If data is missing, generate appropriate placeholder content.`
+<!DOCTYPE html>
+<html lang="${isNl ? 'nl' : 'en'}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CV ${fullName} — Harvest Talent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Source+Serif+4:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #E8E0D8; font-family: 'Libre Franklin', sans-serif; padding: 32px; }
+.pages { display: flex; flex-direction: column; gap: 24px; align-items: center; }
+
+/* PAGE */
+.page { width: 794px; height: 1123px; background: #FFFBF5; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.18); overflow: hidden; }
+
+/* HEADER */
+.page-header { background: #092B13; height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; flex-shrink: 0; }
+.logo-text { font-family: 'Source Serif 4', serif; font-size: 20px; font-weight: 400; color: #FFFBF5; letter-spacing: 0.12em; }
+.header-meta { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 500; color: rgba(255,251,245,0.75); }
+
+/* FOOTER */
+.page-footer { background: #092B13; height: 32px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; flex-shrink: 0; }
+.footer-left { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,251,245,0.75); }
+.footer-dot { width: 4px; height: 4px; border-radius: 50%; background: #FFFBF5; flex-shrink: 0; }
+.footer-right { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,251,245,0.75); }
+
+/* PAGE BODY */
+.page-body { display: flex; flex: 1; overflow: hidden; }
+
+/* SIDEBAR (page 1 only) */
+.sidebar { width: 220px; background: #E4DCD3; padding: 28px 22px; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+.photo-wrap { width: 100%; aspect-ratio: 1/1; overflow: hidden; margin-bottom: 18px; }
+.sb-block { margin-bottom: 18px; }
+.sb-label-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.sb-label { font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600; color: #092B13; white-space: nowrap; }
+.sb-rule { flex: 1; border: none; border-top: 1px solid rgba(9,40,18,0.30); }
+.sb-value { font-size: 12.5px; line-height: 1.4; color: #1c1f1a; }
+.sb-list { list-style: none; }
+.sb-list li { font-size: 12.5px; line-height: 1.4; color: #1c1f1a; padding-left: 14px; position: relative; margin-bottom: 3px; }
+.sb-list li::before { content: ''; position: absolute; left: 0; top: 6px; width: 5px; height: 5px; border-radius: 50%; background: #782410; }
+.sb-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.sb-chip { background: #092B13; color: #FFFBF5; font-size: 10px; padding: 4px 9px; border-radius: 5px; font-family: 'Libre Franklin', sans-serif; }
+.sb-spacer { flex: 1; }
+.contact-block { margin-bottom: 10px; }
+.contact-name { font-size: 12.5px; font-weight: 600; color: #1c1f1a; }
+.contact-line { font-size: 10.5px; color: #5b5750; }
+
+/* MAIN COLUMN */
+.main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.main-p1 { padding: 28px 36px 32px; overflow: hidden; }
+.main-full { padding: 32px 56px 36px; overflow: hidden; }
+
+/* PAGE 1 MAIN */
+.eyebrow { font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 500; color: #782410; margin-bottom: 4px; }
+.cand-name { font-family: 'Source Serif 4', serif; font-weight: 400; font-size: 38px; line-height: 1.05; letter-spacing: -0.01em; white-space: nowrap; color: #092B13; }
+.cand-name .age { font-style: italic; color: #782410; }
+.tagline { font-style: italic; font-size: 13px; color: #3c3a35; margin-top: 5px; }
+.review-mark { font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 500; color: #092B13; margin: 22px 0 8px; }
+.review-body p { font-size: 12px; line-height: 1.55; color: #1c1f1a; margin: 0 0 8px; text-wrap: pretty; }
+
+/* SECTION HEAD */
+.section-head { display: flex; align-items: baseline; gap: 14px; margin: 22px 0 12px; }
+.section-head.first { margin-top: 0; }
+.section-head h2 { font-family: 'Source Serif 4', serif; font-weight: 600; font-size: 24px; color: #092B13; white-space: nowrap; }
+.section-rule { flex: 1; border: none; border-top: 1px solid rgba(9,40,18,0.30); }
+.section-count { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; font-weight: 500; color: rgba(9,40,18,0.55); white-space: nowrap; }
+
+/* ENTRY */
+.entry { padding: 10px 0 14px; border-bottom: 1px dashed rgba(9,40,18,0.20); }
+.entry:last-child { border-bottom: none; }
+.entry-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 3px; }
+.entry-title { font-size: 13.5px; font-weight: 700; color: #092B13; }
+.entry-date { font-size: 11.5px; color: rgba(9,40,18,0.55); white-space: nowrap; }
+.entry-org { font-size: 12px; color: #3c3a35; margin: 0 0 6px; }
+.entry-body { font-size: 11.5px; line-height: 1.55; color: #1c1f1a; }
+.entry-list { list-style: none; margin: 4px 0 0; }
+.entry-list li { font-size: 11.5px; line-height: 1.55; color: #1c1f1a; padding-left: 13px; position: relative; margin-bottom: 2px; }
+.entry-list li::before { content: ''; position: absolute; left: 0; top: 6px; width: 4px; height: 4px; border-radius: 50%; background: #782410; }
+.kw { background: #F4D9CE; color: #782410; font-size: 10px; padding: 2px 7px; border-radius: 3px; font-weight: 500; display: inline-block; margin: 2px 2px 0 0; }
+
+/* SKILLS PAGE */
+.skills-sub { font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600; color: #092B13; margin: 16px 0 10px; }
+.skills-sub:first-child { margin-top: 0; }
+.skills-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { background: #092B13; color: #FFFBF5; font-size: 11.5px; padding: 5px 11px; border-radius: 5px; font-family: 'Libre Franklin', sans-serif; }
+.pill.soft { background: transparent; color: #092812; border: 1px solid rgba(9,40,18,0.30); }
+
+@media print {
+  body { background: #FFFBF5; padding: 0; }
+  .pages { gap: 0; }
+  .page { box-shadow: none; page-break-after: always; }
+}
+</style>
+</head>
+<body>
+<div class="pages">
+
+  <!-- PAGE 1 -->
+  <div class="page">
+    <div class="page-header">
+      <div class="logo-text">HARVEST</div>
+      <div class="header-meta">Curriculum vitae · Confidential</div>
+    </div>
+    <div class="page-body">
+      <div class="sidebar">
+        <div class="photo-wrap">
+          [PHOTO_PLACEHOLDER]
+        </div>
+
+        <div class="sb-block">
+          <div class="sb-label-row"><span class="sb-label">${isNl ? 'Woonplaats' : 'Location'}</span><hr class="sb-rule"></div>
+          <div class="sb-value">[CITY]</div>
+        </div>
+
+        <div class="sb-block">
+          <div class="sb-label-row"><span class="sb-label">${isNl ? 'Beschikbaarheid' : 'Availability'}</span><hr class="sb-rule"></div>
+          <div class="sb-value">[AVAILABILITY]</div>
+        </div>
+
+        <div class="sb-block">
+          <div class="sb-label-row"><span class="sb-label">${isNl ? 'Relevante skills' : 'Relevant skills'}</span><hr class="sb-rule"></div>
+          <div class="sb-chips">
+            [SKILL_CHIPS — 4 to 6 most relevant skills as <span class="sb-chip">Skill</span> elements]
+          </div>
+        </div>
+
+        <div class="sb-block">
+          <div class="sb-label-row"><span class="sb-label">${isNl ? 'Interesses & hobbies' : 'Interests & hobbies'}</span><hr class="sb-rule"></div>
+          <ul class="sb-list">
+            [HOBBIES as <li> items]
+          </ul>
+        </div>
+
+        <div class="sb-block">
+          <div class="sb-label-row"><span class="sb-label">${isNl ? 'Talen' : 'Languages'}</span><hr class="sb-rule"></div>
+          <ul class="sb-list">
+            [LANGUAGES as <li> items with level, e.g. "Nederlands — Moedertaal"]
+          </ul>
+        </div>
+
+        <div class="sb-spacer"></div>
+
+        <div class="sb-block" style="margin-bottom:0;">
+          <div class="sb-label-row"><span class="sb-label">${isNl ? 'Contact' : 'Contact'}</span><hr class="sb-rule"></div>
+          [CONTACT_BLOCKS]
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="main-p1">
+          <div class="eyebrow">${isNl ? 'Profiel young professional' : 'Profile young professional'}</div>
+          <div class="cand-name">[FIRST_NAME] [LAST_NAME]${candidate.age ? `, <span class="age">${candidate.age}</span>` : ''}</div>
+          <div class="tagline">[ROLE] · [SHORT_DESCRIPTOR — e.g. "Analytisch, gedreven en klantgericht"]</div>
+          <div class="review-mark">${reviewLabel}</div>
+          <div class="review-body">
+            [2–4 paragraphs <p>...</p> about the candidate — personal, professional strengths, ambitions. MAX combined with education below: 2600 chars]
+          </div>
+
+          <div class="section-head">
+            <h2>${isNl ? 'Opleiding' : 'Education'}</h2>
+            <hr class="section-rule">
+            <span class="section-count">[N] ${isNl ? 'opleidingen' : 'degrees'}</span>
+          </div>
+
+          [EDUCATION ENTRIES — use .entry structure:
+          <div class="entry">
+            <div class="entry-head">
+              <span class="entry-title">[DEGREE] [FIELD]</span>
+              <span class="entry-date">[YEAR]</span>
+            </div>
+            <div class="entry-org">[INSTITUTION]</div>
+            <div class="entry-body">[SHORT DESCRIPTION if any]</div>
+          </div>
+          ]
+        </div>
+      </div>
+    </div>
+    <div class="page-footer">
+      <div class="footer-left">
+        <div class="footer-dot"></div>
+        <span>${fullName}</span>
+        <div class="footer-dot"></div>
+        <span>Harvest Young Professional</span>
+      </div>
+      <div class="footer-right">1 / 3</div>
+    </div>
+  </div>
+
+  <!-- PAGE 2 -->
+  <div class="page">
+    <div class="page-header">
+      <div class="logo-text">HARVEST</div>
+      <div class="header-meta">${fullName} · ${isNl ? 'Skills & Ervaring' : 'Skills & Experience'}</div>
+    </div>
+    <div class="page-body">
+      <div class="main">
+        <div class="main-full">
+          <div class="section-head first">
+            <h2>Skills</h2>
+            <hr class="section-rule">
+          </div>
+
+          [SKILLS CONTENT — structure:
+          <div class="skills-sub">${isNl ? 'Soft skills' : 'Soft skills'}</div>
+          <div class="skills-pills">
+            [soft skill pills as <span class="pill soft">Skill</span>]
+          </div>
+
+          Then for each technical category (e.g. Programming languages, Libraries & frameworks, Tools & platforms, Domain):
+          <div class="skills-sub">[Category name]</div>
+          <div class="skills-pills">
+            [hard skill pills as <span class="pill">Skill</span>]
+          </div>
+          ]
+
+          <div class="section-head">
+            <h2>${isNl ? 'Werkervaring' : 'Work experience'}</h2>
+            <hr class="section-rule">
+            <span class="section-count">[N] ${isNl ? 'posities' : 'positions'}</span>
+          </div>
+
+          [WORK EXPERIENCE ENTRIES — use .entry structure with entry-list bullets and kw tags:
+          <div class="entry">
+            <div class="entry-head">
+              <span class="entry-title">[ROLE]</span>
+              <span class="entry-date">[PERIOD]</span>
+            </div>
+            <div class="entry-org">[COMPANY]</div>
+            <ul class="entry-list">
+              <li>[bullet point]</li>
+            </ul>
+            <div style="margin-top:6px;">
+              <span class="kw">[keyword]</span>
+            </div>
+          </div>
+          ]
+        </div>
+      </div>
+    </div>
+    <div class="page-footer">
+      <div class="footer-left">
+        <div class="footer-dot"></div>
+        <span>${fullName}</span>
+        <div class="footer-dot"></div>
+        <span>Harvest Young Professional</span>
+      </div>
+      <div class="footer-right">2 / 3</div>
+    </div>
+  </div>
+
+  <!-- PAGE 3 -->
+  <div class="page">
+    <div class="page-header">
+      <div class="logo-text">HARVEST</div>
+      <div class="header-meta">${fullName} · ${isNl ? 'Projecten & Onderzoek' : 'Projects & Research'}</div>
+    </div>
+    <div class="page-body">
+      <div class="main">
+        <div class="main-full">
+          <div class="section-head first">
+            <h2>${isNl ? 'Projecten' : 'Projects'}</h2>
+            <hr class="section-rule">
+            <span class="section-count">[N] ${isNl ? 'projecten' : 'projects'}</span>
+          </div>
+
+          [PROJECT ENTRIES — use .entry structure:
+          <div class="entry">
+            <div class="entry-head">
+              <span class="entry-title">[PROJECT NAME]</span>
+              <span class="entry-date">[PERIOD]</span>
+            </div>
+            <div class="entry-org">[CONTEXT / INSTITUTION if applicable]</div>
+            <div class="entry-body">[DESCRIPTION — concise, max ~150 chars per project]</div>
+            <div style="margin-top:6px;">
+              <span class="kw">[tech/keyword]</span>
+            </div>
+          </div>
+          ]
+
+          [If page 3 has space left (more than ~400px worth), add a motivational closing quote or short personal statement in a styled block:
+          <div style="margin-top:24px;padding:16px 20px;border-left:3px solid #782410;background:#F4D9CE22;">
+            <p style="font-style:italic;font-size:12px;line-height:1.6;color:#3c3a35;">"[CLOSING QUOTE OR PERSONAL STATEMENT]"</p>
+          </div>
+          ]
+        </div>
+      </div>
+    </div>
+    <div class="page-footer">
+      <div class="footer-left">
+        <div class="footer-dot"></div>
+        <span>${fullName}</span>
+        <div class="footer-dot"></div>
+        <span>Harvest Young Professional</span>
+      </div>
+      <div class="footer-right">3 / 3</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
+
+INSTRUCTIONS FOR FILLING IN THE TEMPLATE:
+1. Replace ALL [PLACEHOLDER] markers with real content derived from the candidate data provided.
+2. Use the PHOTO PLACEHOLDER provided above exactly — do not modify it.
+3. Use the CONTACT BLOCKS provided above exactly — do not modify them.
+4. Page 1 right column: "${reviewLabel}" text + Education. Count chars, stay ≤ 2600.
+5. Page 2 right column: Skills (pills) + Work Experience. Count chars, stay ≤ 2600. Cut bullet points or entries if needed.
+6. Page 3 right column: Projects only. Count chars, stay ≤ 2600. Cut descriptions if needed.
+7. If data is missing for a section, use reasonable professional placeholders.
+8. The output must be a single complete HTML document with NO placeholders remaining.
+9. Output ONLY the HTML. Do not add any text before <!DOCTYPE html> or after </html>.`
 
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 8192,
+    max_tokens: 8000,
     messages: [
       {
         role: 'user',
@@ -79,12 +395,14 @@ Generate realistic, professional content based on the data provided. If data is 
     throw new Error('Unexpected response type from Claude')
   }
 
-  // Extract HTML if wrapped in code blocks
+  // Strip markdown fences if present
   let html = content.text
   const htmlMatch = html.match(/```html\n?([\s\S]*?)```/)
   if (htmlMatch) {
     html = htmlMatch[1]
   }
+  // Also strip any leading/trailing backtick-only fences
+  html = html.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '')
 
   return html.trim()
 }
@@ -92,14 +410,14 @@ Generate realistic, professional content based on the data provided. If data is 
 export async function refineCV(currentHtml: string, instruction: string): Promise<string> {
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 8192,
+    max_tokens: 8000,
     messages: [
       {
         role: 'user',
-        content: `Here is the current CV HTML:\n\n${currentHtml}\n\nPlease make the following change: ${instruction}\n\nReturn the complete updated HTML only, starting with <!DOCTYPE html>.`,
+        content: `Here is the current CV HTML:\n\n${currentHtml}\n\nPlease make the following change: ${instruction}\n\nReturn the complete updated HTML only, starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no explanation.`,
       },
     ],
-    system: 'You are a professional CV designer. Modify the provided HTML CV as instructed. Return ONLY the complete HTML document, no explanations.',
+    system: 'You are a professional CV designer for Harvest Talent. Modify the provided HTML CV as instructed. Return ONLY the complete HTML document starting with <!DOCTYPE html>. No markdown fences, no explanation.',
   })
 
   const content = message.content[0]
@@ -112,6 +430,7 @@ export async function refineCV(currentHtml: string, instruction: string): Promis
   if (htmlMatch) {
     html = htmlMatch[1]
   }
+  html = html.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '')
 
   return html.trim()
 }
