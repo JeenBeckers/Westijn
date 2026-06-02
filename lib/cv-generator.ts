@@ -19,7 +19,7 @@ function buildContactHTML(contacts: { name: string; email: string; phone: string
     </div>`).join('\n')
 }
 
-export async function generateCV(candidate: Candidate, intakeData?: CVData): Promise<string> {
+export async function generateCV(candidate: Candidate, intakeData?: CVData, additionalInstructions?: string): Promise<string> {
   const contacts = CONTACT_PERSONS[candidate.contact_person] || CONTACT_PERSONS.marlie
   const isNl = candidate.language === 'nl'
   const reviewLabel = candidate.review_tone === 'formal'
@@ -376,7 +376,12 @@ INSTRUCTIONS FOR FILLING IN THE TEMPLATE:
 6. Page 3 right column: Projects only. Count chars, stay ≤ 2600. Cut descriptions if needed.
 7. If data is missing for a section, use reasonable professional placeholders.
 8. The output must be a single complete HTML document with NO placeholders remaining.
-9. Output ONLY the HTML. Do not add any text before <!DOCTYPE html> or after </html>.`
+9. Output ONLY the HTML. Do not add any text before <!DOCTYPE html> or after </html>.${additionalInstructions ? `
+
+ADDITIONAL INSTRUCTIONS FROM RECRUITER:
+${additionalInstructions}
+
+Follow these instructions while respecting all page limits and layout rules above.` : ''}`
 
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',

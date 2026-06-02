@@ -27,6 +27,7 @@ export default function CandidateDetailPage() {
   const [intakeSent, setIntakeSent] = useState(false)
   const [refineText, setRefineText] = useState('')
   const [refining, setRefining] = useState(false)
+  const [generationNotes, setGenerationNotes] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -79,6 +80,7 @@ export default function CandidateDetailPage() {
         body: JSON.stringify({
           candidateId: candidate.id,
           intakeData: intakeResponse?.responses,
+          additionalInstructions: generationNotes || undefined,
         }),
       })
       if (!res.ok) {
@@ -229,6 +231,22 @@ export default function CandidateDetailPage() {
                     <CardTitle>Acties</CardTitle>
                   </CardHeader>
                   <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-widest text-harvest-green mb-1">
+                        Aanvullende instructies voor de generator
+                      </label>
+                      <textarea
+                        value={generationNotes}
+                        onChange={(e) => setGenerationNotes(e.target.value)}
+                        placeholder="Bijv. focus op data-ervaring, houd review kort, benoem stage bij ASML expliciet…"
+                        rows={3}
+                        className="w-full px-3 py-2 text-sm bg-harvest-bg border border-harvest-bg rounded focus:outline-none focus:ring-2 focus:ring-harvest-green resize-none"
+                        style={{ minHeight: '80px' }}
+                      />
+                      <p className="text-xs text-harvest-muted mt-1">
+                        Optioneel — Claude houdt hier rekening mee bij het genereren
+                      </p>
+                    </div>
                     <Button
                       onClick={handleGenerateCV}
                       loading={generating}
