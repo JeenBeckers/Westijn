@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { candidateId, intakeData, additionalInstructions } = await request.json()
+    const { candidateId, intakeData, additionalInstructions, importedContent } = await request.json()
 
     const { data: candidate } = await supabase
       .from('candidates')
@@ -22,7 +22,11 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Kandidaat niet gevonden' }, { status: 404 })
     }
 
-    const html = await generateCV(candidate, intakeData, additionalInstructions)
+    // Merge explicit importedContent into intakeData so cv-generator can use it
+    const mergedIntakeData = importedContent
+      ? { ...(intakeData || {}), importedContent }
+      : intakeData
+    const html = await generateCV(candidate, mergedIntakeData, additionalInstructions)
 
     // Save the generated HTML and JSON to the candidate
     await supabase

@@ -18,6 +18,7 @@ export function CandidateForm() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [photoFoundInHtml, setPhotoFoundInHtml] = useState(false)
   const [htmlImportedPhoto, setHtmlImportedPhoto] = useState<string | null>(null)
+  const [importedHtmlContent, setImportedHtmlContent] = useState<string | null>(null)
   const [intakeEmail, setIntakeEmail] = useState('')
   const [savedCandidateId, setSavedCandidateId] = useState<string | null>(null)
   const [intakeSending, setIntakeSending] = useState(false)
@@ -41,6 +42,14 @@ export function CandidateForm() {
     reader.readAsDataURL(file)
   }
 
+  function extractTextFromHtml(html: string): string {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+    // Remove script and style elements
+    doc.querySelectorAll('script, style').forEach(el => el.remove())
+    return doc.body?.innerText || doc.body?.textContent || ''
+  }
+
   function handleHtmlImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -50,18 +59,26 @@ export function CandidateForm() {
       const html = ev.target?.result as string
       const parser = new DOMParser()
       const doc = parser.parseFromString(html, 'text/html')
-      const imgs = doc.querySelectorAll('img')
 
+      // Extract and store full text content as imported content
+      doc.querySelectorAll('script, style').forEach(el => el.remove())
+      const textContent = doc.body?.innerText || doc.body?.textContent || ''
+      setImportedHtmlContent(textContent || null)
+
+      // Extract photo
+      const imgs = doc.querySelectorAll('img')
+      let foundPhoto = false
       for (const img of imgs) {
         const src = img.getAttribute('src') || ''
         if (src.startsWith('data:image/') || (src.startsWith('http') && src.length > 10)) {
           setHtmlImportedPhoto(src)
           setPhotoFoundInHtml(true)
           setPhotoPreview(src)
-          return
+          foundPhoto = true
+          break
         }
       }
-      setPhotoFoundInHtml(false)
+      if (!foundPhoto) setPhotoFoundInHtml(false)
     }
     reader.readAsText(file)
   }
@@ -108,6 +125,9 @@ export function CandidateForm() {
           age: data.age ? Number(data.age) : null,
           created_by: user.id,
           photo_url: photoUrl,
+          cv_json: importedHtmlContent
+            ? { name: `${data.first_name} ${data.last_name}`, role: data.role, importedContent: importedHtmlContent }
+            : null,
         })
         .select()
         .single()

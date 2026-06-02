@@ -40,6 +40,7 @@ export interface CVData {
   projects?: ProjectEntry[]
   hobbies?: string[]
   self_introduction?: string
+  importedContent?: string
 }
 
 export interface EducationEntry {

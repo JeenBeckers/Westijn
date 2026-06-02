@@ -36,8 +36,27 @@ export async function generateCV(candidate: Candidate, intakeData?: CVData, addi
 
   const systemPrompt = `You are a professional CV generator for Harvest Talent. Output ONLY a complete, valid HTML document. No markdown, no code fences, no explanation. Start with <!DOCTYPE html> and end with </html>.`
 
-  const userPrompt = `Generate a Harvest Talent CV HTML document for ${fullName}.
+  const importedContent: string | undefined = (cvData as CVData & { importedContent?: string }).importedContent
+    || (candidate.cv_json as (CVData & { importedContent?: string }) | null)?.importedContent
 
+  const importedContentBlock = importedContent ? `
+SOURCE DOCUMENT (use this as primary source of truth):
+The following text was extracted from an existing CV. Use the information in this document — especially education, work experience, and projects — verbatim as the basis for the new CV. Do NOT invent or substitute data.
+
+${importedContent}
+
+---
+IMPORTANT RULES FOR IMPORTED CVs:
+- All education entries (BSc, MSc, HBO, etc.) MUST come from the source document above
+- All work experience MUST come from the source document
+- Do not replace any university or institution with a different one
+- If the source shows MSc at Utrecht University, the new CV must also show MSc at Utrecht University
+- Only the formatting, layout and Harvest branding are new — the content is from the source
+
+` : ''
+
+  const userPrompt = `Generate a Harvest Talent CV HTML document for ${fullName}.
+${importedContentBlock}
 CANDIDATE DATA:
 ${JSON.stringify({ ...candidate, ...cvData }, null, 2)}
 
