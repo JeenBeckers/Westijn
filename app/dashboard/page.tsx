@@ -9,6 +9,186 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { PlusCircle, FileUp } from 'lucide-react'
 import type { Profile, Candidate } from '@/types'
 
+type CandidateInvite = {
+  id: string
+  candidate_name: string
+  candidate_email: string
+  status: string
+  created_at: string
+  expires_at: string
+  submitted_at: string | null
+  token: string
+}
+
+function InviteStatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    submitted: 'bg-green-100 text-green-800 border-green-200',
+    expired: 'bg-gray-100 text-gray-500 border-gray-200',
+  }
+  const labels: Record<string, string> = {
+    pending: 'In behandeling',
+    submitted: 'Ingediend',
+    expired: 'Verlopen',
+  }
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${styles[status] ?? styles.expired}`}>
+      {labels[status] ?? status}
+    </span>
+  )
+}
+
+function NewInviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (invite: CandidateInvite) => void }) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [created, setCreated] = useState<CandidateInvite | null>(null)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/invites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidateName: name, candidateEmail: email }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Mislukt'); return }
+      setCreated(data.invite)
+      onSuccess(data.invite)
+    } catch {
+      setError('Er is iets misgegaan')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+        <h2 className="font-serif text-lg font-semibold text-[#1a2b4b] mb-4">Kandidaat uitnodigen</h2>
+        {created ? (
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded p-3 text-sm text-green-700">
+              Uitnodiging verstuurd naar {created.candidate_email}!
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Portal link:</p>
+              <p className="text-xs font-mono bg-gray-50 border rounded px-2 py-1 break-all">
+                https://westijn.vercel.app/candidate/{created.token}
+              </p>
+            </div>
+            <button onClick={onClose} className="w-full py-2 rounded bg-[#1a2b4b] text-white text-sm font-medium">Sluiten</button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Naam kandidaat</label>
+              <input
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c1272d]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">E-mailadres</label>
+              <input
+                required
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c1272d]"
+              />
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div className="flex gap-3 justify-end">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded border border-gray-300 text-gray-600 hover:bg-gray-50">Annuleren</button>
+              <button type="submit" disabled={loading} className="px-4 py-2 text-sm rounded bg-[#c1272d] text-white font-medium hover:bg-[#a01f24] disabled:opacity-60">
+                {loading ? 'Versturen…' : 'Uitnodigen'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ColleagueInviteSection() {
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.endsWith('@harvest.nl')) {
+      setError('Alleen @harvest.nl e-mailadressen zijn toegestaan')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/invite-colleague', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Mislukt'); return }
+      setSuccess(true)
+      setEmail('')
+    } catch {
+      setError('Er is iets misgegaan')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <section>
+      <h2 className="font-serif font-semibold text-lg mb-4" style={{ color: '#092B13' }}>Collega uitnodigen</h2>
+      <div className="bg-white border border-gray-200 rounded-lg p-6 max-w-md">
+        {success ? (
+          <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3">
+            Uitnodiging verstuurd naar {email || 'de opgegeven collega'}!
+          </p>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">E-mailadres collega</label>
+              <input
+                required
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(null) }}
+                placeholder="naam@harvest.nl"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c1272d]"
+              />
+              {email && !email.endsWith('@harvest.nl') && (
+                <p className="text-xs text-red-500 mt-1">Alleen @harvest.nl e-mailadressen zijn toegestaan</p>
+              )}
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading || (!!email && !email.endsWith('@harvest.nl'))}
+              className="px-4 py-2 text-sm rounded font-medium text-white transition-colors disabled:opacity-60"
+              style={{ background: '#1a2b4b' }}
+            >
+              {loading ? 'Versturen…' : 'Verstuur uitnodiging'}
+            </button>
+          </form>
+        )}
+      </div>
+    </section>
+  )
+}
+
 type CandidateWithProfile = Candidate & { profiles: { full_name: string } | null }
 
 function DeleteModal({
@@ -121,9 +301,11 @@ export default function DashboardPage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [candidates, setCandidates] = useState<CandidateWithProfile[]>([])
+  const [invites, setInvites] = useState<CandidateInvite[]>([])
   const [loading, setLoading] = useState(true)
   const [toDelete, setToDelete] = useState<CandidateWithProfile | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [showNewInviteModal, setShowNewInviteModal] = useState(false)
 
   const fetchData = useCallback(async () => {
     const supabase = createClient()
@@ -133,16 +315,21 @@ export default function DashboardPage() {
       return
     }
 
-    const [{ data: prof }, { data: cands }] = await Promise.all([
+    const [{ data: prof }, { data: cands }, { data: inviteData }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase
         .from('candidates')
         .select('*, profiles:created_by (full_name)')
         .order('created_at', { ascending: false }),
+      supabase
+        .from('candidate_invites')
+        .select('*')
+        .order('created_at', { ascending: false }),
     ])
 
     setProfile(prof as Profile | null)
     setCandidates((cands ?? []) as CandidateWithProfile[])
+    setInvites((inviteData ?? []) as CandidateInvite[])
     setLoading(false)
   }, [router])
 
@@ -174,6 +361,12 @@ export default function DashboardPage() {
           candidate={toDelete}
           onConfirm={handleDelete}
           onCancel={() => !deleting && setToDelete(null)}
+        />
+      )}
+      {showNewInviteModal && (
+        <NewInviteModal
+          onClose={() => setShowNewInviteModal(false)}
+          onSuccess={(invite) => setInvites((prev) => [invite, ...prev])}
         />
       )}
       <Sidebar profile={profile} />
@@ -259,6 +452,71 @@ export default function DashboardPage() {
                 </div>
               </section>
             )}
+
+            {/* Kandidaatuitnodigingen section */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-serif font-semibold text-lg" style={{ color: '#092B13' }}>
+                  Kandidaatuitnodigingen
+                </h2>
+                <button
+                  onClick={() => setShowNewInviteModal(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded text-sm font-medium text-white transition-colors"
+                  style={{ background: '#c1272d' }}
+                >
+                  <PlusCircle size={16} />
+                  Nieuw uitnodigen
+                </button>
+              </div>
+              {loading ? (
+                <p className="text-sm text-harvest-muted italic">Laden…</p>
+              ) : invites.length === 0 ? (
+                <p className="text-sm text-harvest-muted italic">Nog geen uitnodigingen verstuurd</p>
+              ) : (
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-gray-50">
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Naam</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Verzonden op</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-600">Verloopt / Ingediend</th>
+                        <th className="px-4 py-3"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invites.map((inv) => (
+                        <tr key={inv.id} className="border-b last:border-0 hover:bg-gray-50">
+                          <td className="px-4 py-3 font-medium text-[#092B13]">{inv.candidate_name}</td>
+                          <td className="px-4 py-3 text-gray-500">{inv.candidate_email}</td>
+                          <td className="px-4 py-3"><InviteStatusBadge status={inv.status} /></td>
+                          <td className="px-4 py-3 text-gray-500">{new Date(inv.created_at).toLocaleDateString('nl-NL')}</td>
+                          <td className="px-4 py-3 text-gray-500">
+                            {inv.submitted_at
+                              ? new Date(inv.submitted_at).toLocaleDateString('nl-NL')
+                              : new Date(inv.expires_at).toLocaleDateString('nl-NL')}
+                          </td>
+                          <td className="px-4 py-3">
+                            {inv.status === 'submitted' && (
+                              <Link
+                                href={`/admin/submissions/${inv.id}`}
+                                className="text-xs font-medium text-[#c1272d] hover:underline"
+                              >
+                                Bekijken
+                              </Link>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            {/* Collega uitnodigen */}
+            <ColleagueInviteSection />
           </div>
         </main>
       </div>
