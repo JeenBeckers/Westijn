@@ -139,7 +139,11 @@ export async function PUT(
         console.error('Upload error:', error)
         return null
       }
-      return path
+      // Return a signed URL valid for 10 years so the CV can embed the photo
+      const { data: signed } = await adminClient.storage
+        .from('candidate-uploads')
+        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10)
+      return signed?.signedUrl ?? null
     }
 
     const photoFile = formData.get('photo') as File | null
