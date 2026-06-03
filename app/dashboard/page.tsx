@@ -105,7 +105,7 @@ function NewInviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
             <div>
               <p className="text-xs text-gray-500 mb-1">Portal link:</p>
               <p className="text-xs font-mono bg-gray-50 border rounded px-2 py-1 break-all">
-                https://westijn.vercel.app/candidate/{created.token}
+                https://jordan.vercel.app/candidate/{created.token}
               </p>
             </div>
             <button onClick={onClose} className="w-full py-2 rounded bg-[#1a2b4b] text-white text-sm font-medium">Sluiten</button>
@@ -147,7 +147,7 @@ function NewInviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
 
 function CopyLinkButton({ token }: { token: string }) {
   const [copied, setCopied] = useState(false)
-  const url = `https://westijn.vercel.app/candidate/${token}`
+  const url = `https://jordan.vercel.app/candidate/${token}`
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(url)

@@ -36,7 +36,7 @@ export default function WelcomePage() {
             <img src="/harvest-logo-white.png" alt="Harvest" style={{ height: '28px', filter: 'brightness(0)' }} />
           </div>
 
-          <h2 className="text-2xl font-bold mb-2" style={{ color: '#162518' }}>Welkom bij Westijn!</h2>
+          <h2 className="text-2xl font-bold mb-2" style={{ color: '#162518' }}>Welkom bij Jordan!</h2>
           <p className="text-sm mb-8" style={{ color: '#4a5e4a' }}>
             Je account is aangemaakt. Log in met je e-mailadres en wachtwoord.
           </p>

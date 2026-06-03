@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       hour: '2-digit',
       minute: '2-digit',
     })
-    const portalUrl = `https://westijn.vercel.app/candidate/${invite.token}`
+    const portalUrl = `https://jordan.vercel.app/candidate/${invite.token}`
 
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
