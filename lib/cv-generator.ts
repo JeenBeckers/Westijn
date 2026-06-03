@@ -216,7 +216,7 @@ body { background: #E8E0D8; font-family: 'Libre Franklin', sans-serif; padding: 
   <!-- PAGE 1 -->
   <div class="page">
     <div class="page-header">
-      <div class="logo-text">HARVEST</div>
+      <img src="https://westijn.vercel.app/harvest-logo-white.png" alt="Harvest" style="height:26px;display:block;">
       <div class="header-meta">Curriculum vitae · Confidential</div>
     </div>
     <div class="page-body">
@@ -315,7 +315,7 @@ EDUCATION RULES (strictly enforced):
   <!-- PAGE 2 -->
   <div class="page">
     <div class="page-header">
-      <div class="logo-text">HARVEST</div>
+      <img src="https://westijn.vercel.app/harvest-logo-white.png" alt="Harvest" style="height:26px;display:block;">
       <div class="header-meta">${fullName} · ${isNl ? 'Skills & Ervaring' : 'Skills & Experience'}</div>
     </div>
     <div class="page-body">
@@ -377,7 +377,7 @@ EDUCATION RULES (strictly enforced):
   <!-- PAGE 3 -->
   <div class="page">
     <div class="page-header">
-      <div class="logo-text">HARVEST</div>
+      <img src="https://westijn.vercel.app/harvest-logo-white.png" alt="Harvest" style="height:26px;display:block;">
       <div class="header-meta">${fullName} · ${isNl ? 'Projecten & Onderzoek' : 'Projects & Research'}</div>
     </div>
     <div class="page-body">

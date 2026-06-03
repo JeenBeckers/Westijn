@@ -40,6 +40,7 @@ export default function CandidateDetailPage() {
     projecten: '',
   })
   const [error, setError] = useState<string | null>(null)
+  const [savedAt, setSavedAt] = useState<Date | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -100,6 +101,7 @@ export default function CandidateDetailPage() {
       }
       const { html } = await res.json()
       setCandidate(prev => prev ? { ...prev, cv_html: html } : null)
+      setSavedAt(new Date())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Genereren mislukt')
     } finally {
@@ -144,6 +146,7 @@ export default function CandidateDetailPage() {
       const { html } = await res.json()
       setCandidate(prev => prev ? { ...prev, cv_html: html } : null)
       setRefineText('')
+      setSavedAt(new Date())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verfijnen mislukt')
     } finally {
@@ -171,6 +174,7 @@ export default function CandidateDetailPage() {
       if (!res.ok) throw new Error('Verfijnen mislukt')
       const { html } = await res.json()
       setCandidate(prev => prev ? { ...prev, cv_html: html } : null)
+      setSavedAt(new Date())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verfijnen mislukt')
     } finally {
@@ -215,6 +219,9 @@ export default function CandidateDetailPage() {
               <div className="flex items-center gap-2">
                 {intakeResponse && <Badge variant="success">Intake ontvangen</Badge>}
                 {candidate.cv_html && <Badge variant="info">CV gegenereerd</Badge>}
+                {savedAt && (
+                  <span className="text-xs text-green-600 font-medium">Opgeslagen ✓</span>
+                )}
               </div>
             </div>
 

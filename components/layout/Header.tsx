@@ -22,8 +22,8 @@ export function Header({ profile }: HeaderProps) {
   return (
     <header className="bg-harvest-dark text-white px-6 py-4 flex items-center justify-between shadow-md">
       <div className="flex items-center gap-3">
-        <span className="font-serif text-xl font-semibold tracking-wide text-harvest-brown">HARVEST</span>
-        <span className="text-harvest-muted text-sm">CV Generator</span>
+        <img src="/harvest-logo-dark.png" alt="Harvest" className="h-7" />
+        <span className="text-harvest-muted text-sm">Westijn Profiler</span>
       </div>
       <div className="flex items-center gap-4">
         {profile && (

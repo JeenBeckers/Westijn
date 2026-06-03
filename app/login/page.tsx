@@ -41,7 +41,7 @@ export default function LoginPage() {
             <span className="font-serif text-harvest-brown text-xl font-bold">H</span>
           </div>
           <h1 className="font-serif text-3xl text-harvest-dark">HARVEST</h1>
-          <p className="text-harvest-muted text-sm mt-1">CV Generator</p>
+          <p className="text-harvest-muted text-sm mt-1">Westijn Profiler</p>
         </div>
 
         {/* Card */}
@@ -82,7 +82,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-xs text-harvest-muted mt-6">
-          Harvest Talent Recruitment &copy; {new Date().getFullYear()}
+          Westijn Profiler &copy; {new Date().getFullYear()}
         </p>
       </div>
     </div>

@@ -207,7 +207,7 @@ export default function DashboardPage() {
                   className="inline-flex items-center gap-2 px-4 py-2 bg-harvest-dark text-white rounded hover:bg-harvest-green transition-colors text-sm font-medium"
                 >
                   <PlusCircle size={16} />
-                  Nieuwe kandidaat
+                  ＋ Genereer via HTML
                 </Link>
               </div>
             </div>
