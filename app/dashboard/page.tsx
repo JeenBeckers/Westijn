@@ -682,8 +682,6 @@ export default function DashboardPage() {
               )}
             </section>
 
-            {/* Collega uitnodigen */}
-            <ColleagueInviteSection />
           </div>
         </main>
       </div>
