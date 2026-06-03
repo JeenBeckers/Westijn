@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Westijn Profiler",
+  title: "Westijn",
   description: "Genereer professionele CV's voor Harvest kandidaten",
 };
 

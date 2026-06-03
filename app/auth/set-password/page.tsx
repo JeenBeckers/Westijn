@@ -1,111 +1,45 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import Image from 'next/image'
 
-export default function SetPasswordPage() {
+export default function WelcomePage() {
   const router = useRouter()
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-
-    if (password.length < 8) {
-      setError('Wachtwoord moet minimaal 8 tekens bevatten.')
-      return
-    }
-    if (password !== confirm) {
-      setError('Wachtwoorden komen niet overeen.')
-      return
-    }
-
-    setLoading(true)
-    const supabase = createClient()
-    const { error } = await supabase.auth.updateUser({ password })
-
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
-
-    router.push('/dashboard')
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Image
-            src="/harvest-logo-dark.png"
-            alt="Harvest"
-            width={160}
-            height={40}
-            className="mx-auto mb-4"
-            style={{ filter: 'invert(1) brightness(0)' }}
-          />
-          <h1 className="text-2xl font-bold" style={{ color: '#1a2b4b' }}>
-            Westijn Profiler
-          </h1>
-          <p className="text-gray-500 mt-1 text-sm">Stel je wachtwoord in</p>
-        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+          {/* Wheat/grain icon */}
+          <div className="flex justify-center mb-4">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M24 4 L24 44" stroke="#c1272d" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M24 36 C20 32 14 32 14 32 C14 32 14 26 20 24 C22 28 24 30 24 32" fill="#c1272d" opacity="0.9"/>
+              <path d="M24 36 C28 32 34 32 34 32 C34 32 34 26 28 24 C26 28 24 30 24 32" fill="#c1272d" opacity="0.9"/>
+              <path d="M24 28 C20 24 14 24 14 24 C14 24 14 18 20 16 C22 20 24 22 24 24" fill="#c1272d" opacity="0.8"/>
+              <path d="M24 28 C28 24 34 24 34 24 C34 24 34 18 28 16 C26 20 24 22 24 24" fill="#c1272d" opacity="0.8"/>
+              <path d="M24 20 C20 16 16 15 16 15 C16 15 17 10 22 9 C23 13 24 16 24 18" fill="#c1272d" opacity="0.7"/>
+              <path d="M24 20 C28 16 32 15 32 15 C32 15 31 10 26 9 C25 13 24 16 24 18" fill="#c1272d" opacity="0.7"/>
+            </svg>
+          </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+          <h1 className="text-2xl font-bold mb-2" style={{ color: '#1a2b4b' }}>
+            Welkom bij Westijn!
+          </h1>
+
           <p className="text-gray-600 text-sm mb-6">
-            Welkom bij Westijn Profiler! Kies een wachtwoord om je account te activeren.
+            Je account is aangemaakt. Je kunt nu inloggen via je e-mailadres.
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Wachtwoord
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Minimaal 8 tekens"
-                required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c1272d]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Bevestig wachtwoord
-              </label>
-              <input
-                type="password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                placeholder="Herhaal je wachtwoord"
-                required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c1272d]"
-              />
-            </div>
-
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 rounded-lg text-white font-semibold text-sm transition-opacity disabled:opacity-60"
-              style={{ background: '#c1272d' }}
-            >
-              {loading ? 'Bezig…' : 'Account activeren'}
-            </button>
-          </form>
+          <button
+            onClick={() => router.push('/login')}
+            className="w-full py-2.5 rounded-lg text-white font-semibold text-sm transition-opacity hover:opacity-90"
+            style={{ backgroundColor: '#c1272d' }}
+          >
+            Ga naar inlogpagina
+          </button>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">Westijn Profiler · Harvest</p>
+        <p className="text-center text-xs text-gray-400 mt-6">Westijn &middot; Harvest</p>
       </div>
     </div>
   )

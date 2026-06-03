@@ -23,7 +23,7 @@ export function Header({ profile }: HeaderProps) {
     <header className="bg-harvest-dark text-white px-6 py-4 flex items-center justify-between shadow-md">
       <div className="flex items-center gap-3">
         <img src="/harvest-logo-dark.png" alt="Harvest" className="h-7" />
-        <span className="text-harvest-muted text-sm">Westijn Profiler</span>
+        <span className="text-harvest-muted text-sm">Westijn</span>
       </div>
       <div className="flex items-center gap-4">
         {profile && (
