@@ -445,11 +445,7 @@ EDUCATION RULES (strictly enforced):
           </div>
           ]
 
-          [If page 3 has space left (more than ~400px worth), add a motivational closing quote or short personal statement in a styled block:
-          <div style="margin-top:24px;padding:16px 20px;border-left:3px solid #782410;background:#F4D9CE22;">
-            <p style="font-style:italic;font-size:12px;line-height:1.6;color:#3c3a35;">"[CLOSING QUOTE OR PERSONAL STATEMENT]"</p>
-          </div>
-          ]
+          [Do NOT add any closing quote, personal statement, or decorative text block at the end of page 3. Leave remaining space empty.]
         </div>
       </div>
     </div>
