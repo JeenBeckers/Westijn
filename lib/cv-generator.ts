@@ -280,22 +280,29 @@ body { background: #E8E0D8; font-family: 'Libre Franklin', sans-serif; padding: 
             <span class="section-count">[N] ${isNl ? 'opleidingen' : 'degrees'}</span>
           </div>
 
-          [EDUCATION ENTRIES — use .entry structure:
+          [EDUCATION ENTRIES — use this EXACT structure for every degree:
           <div class="entry">
             <div class="entry-head">
               <span class="entry-title">[DEGREE] [FIELD]</span>
-              <span class="entry-date">[YEAR]</span>
+              <span class="entry-date">[Mon YYYY - Mon YYYY]</span>
             </div>
-            <div class="entry-org">[INSTITUTION]</div>
-            <div class="entry-body">[SHORT DESCRIPTION if any]</div>
+            <div class="entry-org">[INSTITUTION] · [CITY/COUNTRY]</div>
+            <div class="entry-body">[1-2 sentence description of the programme focus and/or thesis]</div>
+            <div class="entry-body"><em>Courses: [Course 1, Course 2, Course 3, Course 4]</em></div>
+            <div class="kw">[HARD SKILL TAGS from courses/thesis]</div>
           </div>
           ]
+
+          The .kw div must contain <span class="tag"> elements for the main technical topics covered (programming languages, tools, methods, frameworks). Example:
+          <div class="kw"><span class="tag">Python</span><span class="tag">Machine Learning</span><span class="tag">NLP</span></div>
 
 EDUCATION RULES (strictly enforced):
 - ALWAYS include BSc and MSc degrees — these are NEVER cut, even if the 2600 char limit is tight.
 - If the character limit is at risk, shorten the review text instead — education degrees take priority.
 - Within education entries: prefer higher degrees (MSc > BSc > HBO > MBO > VWO/Havo) and more recent over older.
-- For each degree: always show institution, title, period, and graduation status. Thesis and courses are optional and can be shortened or removed to save space.
+- For EVERY education entry: always show institution, title, period, courses line, and .kw tags. Never omit the courses line or tags.
+- The courses line must list 3-5 relevant courses from the programme. If not known, infer typical courses for that degree.
+- The .kw tags must reflect the hard technical skills from that degree (programming languages, tools, methods). Max 5 tags per entry.
 - Never omit a university degree to make room for secondary school or short courses.
 - If both BSc and MSc are present, always show both. A completed HBO counts as equivalent to BSc.
         </div>
