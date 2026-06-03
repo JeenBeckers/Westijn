@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
-import { PlusCircle } from 'lucide-react'
+import { PlusCircle, FileUp } from 'lucide-react'
 import type { Profile, Candidate } from '@/types'
 
 type CandidateWithProfile = Candidate & { profiles: { full_name: string } | null }
@@ -189,13 +189,27 @@ export default function DashboardPage() {
                   {loading ? '…' : `${candidates.length} kandidaten in het archief`}
                 </p>
               </div>
-              <Link
-                href="/candidates/new"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-harvest-dark text-white rounded hover:bg-harvest-green transition-colors text-sm font-medium"
-              >
-                <PlusCircle size={16} />
-                Nieuwe kandidaat
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/candidates/new-from-docs"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded border text-sm font-medium transition-colors"
+                  style={{
+                    borderColor: 'rgba(9,40,18,0.25)',
+                    color: '#092B13',
+                    background: '#F2EBE5',
+                  }}
+                >
+                  <FileUp size={16} />
+                  Genereer via documenten
+                </Link>
+                <Link
+                  href="/candidates/new"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-harvest-dark text-white rounded hover:bg-harvest-green transition-colors text-sm font-medium"
+                >
+                  <PlusCircle size={16} />
+                  Nieuwe kandidaat
+                </Link>
+              </div>
             </div>
 
             {/* CV Archief section */}
