@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL,
+        from: process.env.RESEND_FROM_EMAIL || 'office@harvest.nl',
         to: candidateEmail,
         subject: 'Welkom bij Harvest – vul je vragenlijst in',
         html: `
