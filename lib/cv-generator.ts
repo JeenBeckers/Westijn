@@ -71,7 +71,7 @@ KEYWORD TAGS RULE (strictly enforced):
 - Examples of what belongs: Python, React, PyTorch, Docker, SQL, Azure, Git, REST API, scikit-learn, MONAI, etc.
 - Examples of what does NOT belong: "Teamwork", "Stakeholder management", "Agile/Scrum" (as a soft skill), "Communication", "Leadership", "Problem solving", etc.
 - Agile/Scrum is acceptable ONLY if it refers to the methodology used in the project (not as a soft skill label).
-- Soft skills belong ONLY in the `.pill.soft` elements on the Skills page — never in `.kw .tag` elements.
+- Soft skills belong ONLY in the '.pill.soft' elements on the Skills page — never in '.kw .tag' elements.
 - Keep the tag list short: max 6 tags per entry. Prefer the most specific and technical tags.
 
 OUTPUT RULES:
