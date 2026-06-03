@@ -118,6 +118,27 @@ function NewInviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
   )
 }
 
+function CopyLinkButton({ token }: { token: string }) {
+  const [copied, setCopied] = useState(false)
+  const url = `https://westijn.vercel.app/candidate/${token}`
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 transition-colors text-gray-600"
+      title={url}
+    >
+      {copied ? '✓ Gekopieerd' : '🔗 Kopieer link'}
+    </button>
+  )
+}
+
 function ColleagueInviteSection() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
@@ -482,6 +503,7 @@ export default function DashboardPage() {
                         <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                         <th className="text-left px-4 py-3 font-medium text-gray-600">Verzonden op</th>
                         <th className="text-left px-4 py-3 font-medium text-gray-600">Verloopt / Ingediend</th>
+                        <th className="px-4 py-3 font-medium text-gray-600">Link</th>
                         <th className="px-4 py-3"></th>
                       </tr>
                     </thead>
@@ -496,6 +518,9 @@ export default function DashboardPage() {
                             {inv.submitted_at
                               ? new Date(inv.submitted_at).toLocaleDateString('nl-NL')
                               : new Date(inv.expires_at).toLocaleDateString('nl-NL')}
+                          </td>
+                          <td className="px-4 py-3">
+                            <CopyLinkButton token={inv.token} />
                           </td>
                           <td className="px-4 py-3">
                             {inv.status === 'submitted' && (
