@@ -104,17 +104,25 @@ export function CandidateForm() {
 
         const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path)
         photoUrl = urlData.publicUrl
-      } else if (htmlImportedPhoto && htmlImportedPhoto.startsWith('data:image/')) {
-        // Store base64 from HTML import as photo_url (we'll reference it)
-        // For base64 images from HTML import, we upload them too
-        const blob = await fetch(htmlImportedPhoto).then(r => r.blob())
-        const path = `${user.id}/${Date.now()}.jpg`
-        const { error: uploadError } = await supabase.storage
-          .from('photos')
-          .upload(path, blob)
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path)
-          photoUrl = urlData.publicUrl
+      } else if (htmlImportedPhoto) {
+        if (htmlImportedPhoto.startsWith('data:image/') || htmlImportedPhoto.startsWith('http')) {
+          // Upload base64 or fetch URL photo and store in Supabase
+          try {
+            const blob = await fetch(htmlImportedPhoto).then(r => r.blob())
+            const path = `${user.id}/${Date.now()}.jpg`
+            const { error: uploadError } = await supabase.storage
+              .from('photos')
+              .upload(path, blob, { contentType: 'image/jpeg' })
+            if (!uploadError) {
+              const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path)
+              photoUrl = urlData.publicUrl
+            }
+          } catch {
+            // If fetch fails (e.g. CORS on external URL), use the URL directly
+            if (htmlImportedPhoto.startsWith('http')) {
+              photoUrl = htmlImportedPhoto
+            }
+          }
         }
       }
 
