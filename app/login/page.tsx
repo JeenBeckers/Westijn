@@ -8,45 +8,20 @@ import { AlertCircle } from 'lucide-react'
 export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
-  const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
-  const [code, setCode] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleSendOtp(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: false },
-    })
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
-
-    setStep('code')
-    setLoading(false)
-  }
-
-  async function handleVerifyOtp(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token: code,
-      type: 'email',
-    })
-
-    if (error) {
-      setError('Ongeldige of verlopen code. Probeer opnieuw.')
+      setError('Ongeldig e-mailadres of wachtwoord.')
       setLoading(false)
       return
     }
@@ -102,89 +77,48 @@ export default function LoginPage() {
             </div>
           )}
 
-          {step === 'email' ? (
-            <form onSubmit={handleSendOtp} className="space-y-4">
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium mb-1"
-                  style={{ color: '#1a2b4b' }}
-                >
-                  E-mailadres
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  placeholder="naam@harvest.nl"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c1272d]"
-                />
-              </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium mb-1" style={{ color: '#1a2b4b' }}>
+                E-mailadres
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                placeholder="naam@harvest.nl"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c1272d]"
+              />
+            </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2.5 rounded-lg text-white font-semibold text-sm transition-opacity disabled:opacity-60"
-                style={{ backgroundColor: '#c1272d' }}
-              >
-                {loading ? 'Bezig…' : 'Stuur inlogcode'}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <p className="text-sm text-gray-600">
-                We hebben een inlogcode gestuurd naar{' '}
-                <span className="font-medium" style={{ color: '#1a2b4b' }}>
-                  {email}
-                </span>
-              </p>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium mb-1" style={{ color: '#1a2b4b' }}>
+                Wachtwoord
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                placeholder="••••••••"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c1272d]"
+              />
+            </div>
 
-              <div>
-                <label
-                  htmlFor="code"
-                  className="block text-sm font-medium mb-1"
-                  style={{ color: '#1a2b4b' }}
-                >
-                  Inlogcode
-                </label>
-                <input
-                  id="code"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  required
-                  placeholder="123456"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c1272d] tracking-widest text-center text-lg"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2.5 rounded-lg text-white font-semibold text-sm transition-opacity disabled:opacity-60"
-                style={{ backgroundColor: '#c1272d' }}
-              >
-                {loading ? 'Bezig…' : 'Inloggen'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setStep('email')
-                  setCode('')
-                  setError(null)
-                }}
-                className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                ← Andere e-mail gebruiken
-              </button>
-            </form>
-          )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 rounded-lg text-white font-semibold text-sm transition-opacity disabled:opacity-60"
+              style={{ backgroundColor: '#c1272d' }}
+            >
+              {loading ? 'Bezig…' : 'Inloggen'}
+            </button>
+          </form>
         </div>
 
         {/* Footer */}
