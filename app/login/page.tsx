@@ -76,7 +76,7 @@ export default function LoginPage() {
           </div>
 
           <h2 className="text-2xl font-bold mb-1" style={{ color: '#162518' }}>Inloggen</h2>
-          <p className="text-sm mb-8" style={{ color: '#4a5e4a' }}>Welkom terug bij Jordan, je kandidaten assistent</p>
+          <p className="text-sm mb-8" style={{ color: '#4a5e4a' }}>Welkom terug bij Westijn, je kandidaten assistent</p>
 
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-lg mb-5 text-sm" style={{ backgroundColor: '#f8e8e8', color: '#8B2020', border: '1px solid #e5c5c5' }}>
