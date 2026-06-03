@@ -9,7 +9,7 @@ import { CVPreview } from '@/components/cv/CVPreview'
 import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
-import { Wand2, Send, ArrowLeft, User, MapPin, Clock, Globe } from 'lucide-react'
+import { Wand2, Send, ArrowLeft, User, MapPin, Clock, Globe, ArrowUpRight } from 'lucide-react'
 import type { Candidate, Profile, IntakeResponse } from '@/types'
 
 export default function CandidateDetailPage() {
@@ -42,6 +42,8 @@ export default function CandidateDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [statusUpdating, setStatusUpdating] = useState(false)
+  const [pushing, setPushing] = useState(false)
+  const [pushSuccess, setPushSuccess] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -189,6 +191,29 @@ export default function CandidateDetailPage() {
       setError(err instanceof Error ? err.message : 'Verfijnen mislukt')
     } finally {
       setRefining(false)
+    }
+  }
+
+  async function handlePushToCVTool() {
+    if (!candidate) return
+    setPushing(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/push-to-cv-tool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidateId: candidate.id }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Push mislukt')
+      }
+      setPushSuccess(true)
+      setTimeout(() => setPushSuccess(false), 4000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Push naar CV Tool mislukt')
+    } finally {
+      setPushing(false)
     }
   }
 
@@ -388,6 +413,25 @@ export default function CandidateDetailPage() {
                       <Wand2 size={16} className="mr-2" />
                       {candidate.cv_html ? 'CV opnieuw genereren' : 'CV genereren'}
                     </Button>
+
+                    <Button
+                      onClick={handlePushToCVTool}
+                      loading={pushing}
+                      disabled={pushing}
+                      variant="secondary"
+                      className="w-full"
+                    >
+                      <ArrowUpRight size={16} className="mr-2" />
+                      {pushSuccess ? 'Toegevoegd aan CV Tool ✓' : 'Push naar CV Tool'}
+                    </Button>
+                    {pushSuccess && (
+                      <p className="text-xs text-green-600 text-center">
+                        Kandidaat staat nu in de{' '}
+                        <a href="https://harvest-cv-tool.vercel.app" target="_blank" rel="noopener noreferrer" className="underline">
+                          CV Tool
+                        </a>
+                      </p>
+                    )}
 
                     <div className="pt-3 border-t border-harvest-bg">
                       <p className="text-xs font-medium text-harvest-dark mb-2">Intake versturen</p>
