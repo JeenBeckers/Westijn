@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { generateCV } from '@/lib/cv-generator'
+import { compressImage } from '@/lib/compress-image'
 import type { Candidate } from '@/types'
 
 export async function GET(
@@ -130,11 +131,25 @@ export async function PUT(
     const questionnaireAnswers = questionnaireAnswersRaw ? JSON.parse(questionnaireAnswersRaw) : null
 
     const uploadFile = async (file: File, prefix: string): Promise<string | null> => {
-      const ext = file.name.split('.').pop()
+      const isPhoto = prefix === 'photo'
+      let uploadBuffer: Buffer
+      let contentType: string
+
+      if (isPhoto) {
+        // Compress photo to keep PDF under 1MB
+        const raw = await file.arrayBuffer()
+        uploadBuffer = await compressImage(raw)
+        contentType = 'image/jpeg'
+      } else {
+        uploadBuffer = Buffer.from(await file.arrayBuffer())
+        contentType = file.type
+      }
+
+      const ext = isPhoto ? 'jpg' : (file.name.split('.').pop() ?? 'bin')
       const path = `${invite.id}/${prefix}-${Date.now()}.${ext}`
       const { error } = await adminClient.storage
         .from('candidate-uploads')
-        .upload(path, file, { contentType: file.type, upsert: true })
+        .upload(path, uploadBuffer, { contentType, upsert: true })
       if (error) {
         console.error('Upload error:', error)
         return null

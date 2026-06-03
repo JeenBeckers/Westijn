@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { anthropic } from '@/lib/anthropic'
+import { compressImage } from '@/lib/compress-image'
 
 const CONTACT_PERSONS: Record<string, { name: string; email: string; phone: string }[]> = {
   marlie: [{ name: 'Marlie Ekdom', email: 'marlie@harvesttalent.nl', phone: '+31 6 38596717' }],
@@ -585,17 +586,17 @@ export async function POST(request: NextRequest) {
     let photoMimeType = 'image/jpeg'
 
     if (photoFile && photoFile.size > 0) {
-      const photoBuffer = await photoFile.arrayBuffer()
-      photoBase64 = Buffer.from(photoBuffer).toString('base64')
-      photoMimeType = photoFile.type || 'image/jpeg'
+      const rawBuffer = await photoFile.arrayBuffer()
+      const compressed = await compressImage(rawBuffer)
+      photoBase64 = compressed.toString('base64')
+      photoMimeType = 'image/jpeg'
 
-      // Upload to Supabase storage (temp path; will be moved after candidate creation)
-      const ext = photoFile.name.split('.').pop() || 'jpg'
-      const tempPath = `temp/${user.id}-${Date.now()}.${ext}`
+      // Upload compressed photo to Supabase storage
+      const tempPath = `temp/${user.id}-${Date.now()}.jpg`
       const { error: uploadError } = await supabase.storage
         .from('photos')
-        .upload(tempPath, Buffer.from(photoBuffer), {
-          contentType: photoMimeType,
+        .upload(tempPath, compressed, {
+          contentType: 'image/jpeg',
           upsert: true,
         })
       if (!uploadError) {

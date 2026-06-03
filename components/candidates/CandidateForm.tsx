@@ -33,13 +33,40 @@ export function CandidateForm() {
     },
   })
 
+  function compressImageClient(file: File): Promise<File> {
+    return new Promise((resolve) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        const MAX = 600
+        let { width, height } = img
+        if (width > MAX || height > MAX) {
+          const ratio = Math.min(MAX / width, MAX / height)
+          width = Math.round(width * ratio)
+          height = Math.round(height * ratio)
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+        canvas.toBlob((blob) => {
+          URL.revokeObjectURL(url)
+          resolve(blob ? new File([blob], 'photo.jpg', { type: 'image/jpeg' }) : file)
+        }, 'image/jpeg', 0.72)
+      }
+      img.src = url
+    })
+  }
+
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    setPhotoFile(file)
-    const reader = new FileReader()
-    reader.onload = (ev) => setPhotoPreview(ev.target?.result as string)
-    reader.readAsDataURL(file)
+    compressImageClient(file).then((compressed) => {
+      setPhotoFile(compressed)
+      const reader = new FileReader()
+      reader.onload = (ev) => setPhotoPreview(ev.target?.result as string)
+      reader.readAsDataURL(compressed)
+    })
   }
 
   function extractTextFromHtml(html: string): string {
