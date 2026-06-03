@@ -9,7 +9,7 @@ import { CVPreview } from '@/components/cv/CVPreview'
 import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
-import { Wand2, Mail, Send, ArrowLeft, User, MapPin, Clock, Globe } from 'lucide-react'
+import { Wand2, Send, ArrowLeft, User, MapPin, Clock, Globe } from 'lucide-react'
 import type { Candidate, Profile, IntakeResponse } from '@/types'
 
 export default function CandidateDetailPage() {
@@ -41,6 +41,7 @@ export default function CandidateDetailPage() {
   })
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
+  const [statusUpdating, setStatusUpdating] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -102,10 +103,46 @@ export default function CandidateDetailPage() {
       const { html } = await res.json()
       setCandidate(prev => prev ? { ...prev, cv_html: html } : null)
       setSavedAt(new Date())
+      await trackEditor()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Genereren mislukt')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  async function trackEditor() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: profileData } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+      if (!profileData) return
+      const newEditor = { user_id: user.id, full_name: profileData.full_name, edited_at: new Date().toISOString() }
+      const currentEditors = (candidate?.editors || []) as { user_id: string; full_name: string; edited_at: string }[]
+      const filtered = currentEditors.filter((e) => e.user_id !== user.id)
+      const updatedEditors = [...filtered, newEditor].slice(-3)
+      await supabase.from('candidates').update({ editors: updatedEditors }).eq('id', params.id as string)
+      setCandidate(prev => prev ? { ...prev, editors: updatedEditors } : null)
+    } catch (editorErr) {
+      console.error('Failed to track editor:', editorErr)
+    }
+  }
+
+  async function handleStatusUpdate(newStatus: 'review' | 'in_behandeling' | 'archief') {
+    if (!candidate) return
+    setStatusUpdating(true)
+    setError(null)
+    try {
+      const { error: updateError } = await supabase
+        .from('candidates')
+        .update({ status: newStatus })
+        .eq('id', candidate.id)
+      if (updateError) throw updateError
+      setCandidate(prev => prev ? { ...prev, status: newStatus } : null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Status bijwerken mislukt')
+    } finally {
+      setStatusUpdating(false)
     }
   }
 
@@ -147,6 +184,7 @@ export default function CandidateDetailPage() {
       setCandidate(prev => prev ? { ...prev, cv_html: html } : null)
       setRefineText('')
       setSavedAt(new Date())
+      await trackEditor()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verfijnen mislukt')
     } finally {
@@ -175,6 +213,7 @@ export default function CandidateDetailPage() {
       const { html } = await res.json()
       setCandidate(prev => prev ? { ...prev, cv_html: html } : null)
       setSavedAt(new Date())
+      await trackEditor()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verfijnen mislukt')
     } finally {
@@ -216,7 +255,56 @@ export default function CandidateDetailPage() {
                 </h1>
                 <p className="text-harvest-green text-sm font-medium">{candidate.role}</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Status badge */}
+                {candidate.status === 'review' && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: '#9C2A12', color: '#fff' }}>
+                    Review vereist
+                  </span>
+                )}
+                {candidate.status === 'in_behandeling' && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: '#1a2b4b', color: '#fff' }}>
+                    In behandeling
+                  </span>
+                )}
+                {candidate.status === 'archief' && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: '#5b5750', color: '#fff' }}>
+                    Archief
+                  </span>
+                )}
+
+                {/* Status transition buttons */}
+                {candidate.status === 'review' && (
+                  <button
+                    onClick={() => handleStatusUpdate('in_behandeling')}
+                    disabled={statusUpdating}
+                    className="px-3 py-1 text-xs rounded border font-medium transition-colors disabled:opacity-60"
+                    style={{ borderColor: '#1a2b4b', color: '#1a2b4b' }}
+                  >
+                    {statusUpdating ? '…' : 'Markeer als in behandeling'}
+                  </button>
+                )}
+                {candidate.status === 'in_behandeling' && (
+                  <button
+                    onClick={() => handleStatusUpdate('archief')}
+                    disabled={statusUpdating}
+                    className="px-3 py-1 text-xs rounded border font-medium transition-colors disabled:opacity-60"
+                    style={{ borderColor: '#5b5750', color: '#5b5750' }}
+                  >
+                    {statusUpdating ? '…' : 'Naar archief'}
+                  </button>
+                )}
+                {candidate.status === 'archief' && (
+                  <button
+                    onClick={() => handleStatusUpdate('in_behandeling')}
+                    disabled={statusUpdating}
+                    className="px-3 py-1 text-xs rounded border font-medium transition-colors disabled:opacity-60"
+                    style={{ borderColor: '#1a2b4b', color: '#1a2b4b' }}
+                  >
+                    {statusUpdating ? '…' : 'Terug naar bewerken'}
+                  </button>
+                )}
+
                 {intakeResponse && <Badge variant="success">Intake ontvangen</Badge>}
                 {candidate.cv_html && <Badge variant="info">CV gegenereerd</Badge>}
                 {savedAt && (

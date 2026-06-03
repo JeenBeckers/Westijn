@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { PlusCircle, FileUp } from 'lucide-react'
-import type { Profile, Candidate } from '@/types'
+import type { Profile, Candidate, CandidateEditor } from '@/types'
 
 type CandidateInvite = {
   id: string
@@ -19,6 +19,8 @@ type CandidateInvite = {
   submitted_at: string | null
   token: string
 }
+
+type CandidateWithProfile = Candidate & { profiles: { full_name: string } | null }
 
 function InviteStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
@@ -210,8 +212,6 @@ function ColleagueInviteSection() {
   )
 }
 
-type CandidateWithProfile = Candidate & { profiles: { full_name: string } | null }
-
 function DeleteModal({
   candidate,
   onConfirm,
@@ -256,6 +256,9 @@ function ArchiveCard({
   candidate: CandidateWithProfile
   onDelete: (c: CandidateWithProfile) => void
 }) {
+  const editors: CandidateEditor[] = candidate.editors || []
+  const editorNames = editors.map((e) => e.full_name).join(', ')
+
   return (
     <div
       className="group flex flex-col gap-3 p-[14px_16px] rounded-[6px] border transition-all duration-150"
@@ -296,8 +299,8 @@ function ArchiveCard({
       </div>
 
       <p style={{ fontSize: 10.5, color: '#8a847a' }}>
-        Door {candidate.profiles?.full_name || 'Onbekend'} &middot;{' '}
-        {new Date(candidate.created_at).toLocaleDateString('nl-NL')}
+        Aangemaakt door: {candidate.profiles?.full_name || 'Onbekend'}
+        {editorNames ? ` · Gewijzigd door: ${editorNames}` : ''}
       </p>
 
       <div className="flex gap-2 mt-1">
@@ -313,6 +316,122 @@ function ArchiveCard({
         >
           Verwijder
         </button>
+      </div>
+    </div>
+  )
+}
+
+function InBehandelingCard({
+  candidate,
+  onDelete,
+}: {
+  candidate: CandidateWithProfile
+  onDelete: (c: CandidateWithProfile) => void
+}) {
+  return (
+    <div
+      className="flex flex-col gap-3 p-[14px_16px] rounded-[6px] border transition-all duration-150"
+      style={{
+        background: '#F2EBE5',
+        border: '1px solid rgba(9,40,18,0.08)',
+        borderRadius: 6,
+      }}
+      onMouseEnter={(e) => {
+        ;(e.currentTarget as HTMLDivElement).style.background = '#EBE2D9'
+        ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)'
+      }}
+      onMouseLeave={(e) => {
+        ;(e.currentTarget as HTMLDivElement).style.background = '#F2EBE5'
+        ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'
+      }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-serif font-semibold truncate" style={{ fontSize: 14, color: '#092B13' }}>
+            {candidate.first_name} {candidate.last_name}
+          </p>
+          <p className="truncate" style={{ fontSize: 12, color: '#5b5750' }}>{candidate.role}</p>
+        </div>
+      </div>
+      <p style={{ fontSize: 10.5, color: '#8a847a' }}>
+        Door {candidate.profiles?.full_name || 'Onbekend'} &middot;{' '}
+        {new Date(candidate.created_at).toLocaleDateString('nl-NL')}
+      </p>
+      <div className="flex gap-2 mt-1">
+        <Link
+          href={`/candidates/${candidate.id}`}
+          className="flex-1 text-center px-3 py-1.5 text-xs rounded border border-[rgba(9,40,18,0.2)] text-[#092B13] hover:bg-[#092B13] hover:text-white transition-colors font-medium"
+        >
+          Bekijk CV
+        </Link>
+        <button
+          onClick={() => onDelete(candidate)}
+          className="flex-1 px-3 py-1.5 text-xs rounded border border-[rgba(9,40,18,0.2)] text-[#5b5750] hover:border-[#9C2A12] hover:text-[#9C2A12] transition-colors font-medium"
+        >
+          Verwijder
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ReviewCard({ candidate }: { candidate: CandidateWithProfile }) {
+  return (
+    <div
+      className="flex flex-col gap-3 p-[14px_16px] rounded-[6px] border transition-all duration-150"
+      style={{
+        background: '#FFF5F5',
+        border: '1px solid rgba(156,42,18,0.15)',
+        borderRadius: 6,
+      }}
+      onMouseEnter={(e) => {
+        ;(e.currentTarget as HTMLDivElement).style.background = '#FDECEA'
+        ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)'
+      }}
+      onMouseLeave={(e) => {
+        ;(e.currentTarget as HTMLDivElement).style.background = '#FFF5F5'
+        ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'
+      }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {candidate.photo_url && (
+            <img
+              src={candidate.photo_url}
+              alt=""
+              className="w-9 h-9 rounded-full object-cover shrink-0"
+              style={{ border: '1.5px solid rgba(156,42,18,0.25)' }}
+            />
+          )}
+          <div className="min-w-0">
+            <p className="font-serif font-semibold truncate" style={{ fontSize: 14, color: '#092B13' }}>
+              {candidate.first_name} {candidate.last_name}
+            </p>
+            <p className="truncate" style={{ fontSize: 12, color: '#5b5750' }}>
+              Automatisch gegenereerd via kandidaatportaal
+            </p>
+          </div>
+        </div>
+        <span
+          className="shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold"
+          style={{ background: '#9C2A12', color: '#fff' }}
+        >
+          Review vereist
+        </span>
+      </div>
+
+      <p style={{ fontSize: 10.5, color: '#8a847a' }}>
+        Ingediend op {new Date(candidate.created_at).toLocaleDateString('nl-NL')}
+      </p>
+
+      <div className="flex gap-2 mt-1">
+        <Link
+          href={`/candidates/${candidate.id}`}
+          className="flex-1 text-center px-3 py-1.5 text-xs rounded font-medium transition-colors text-white"
+          style={{ background: '#9C2A12' }}
+        >
+          Bekijken &amp; bewerken
+        </Link>
       </div>
     </div>
   )
@@ -340,7 +459,7 @@ export default function DashboardPage() {
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase
         .from('candidates')
-        .select('*, profiles:created_by (full_name)')
+        .select('*, profiles:created_by(full_name)')
         .order('created_at', { ascending: false }),
       supabase
         .from('candidate_invites')
@@ -372,8 +491,9 @@ export default function DashboardPage() {
     }
   }
 
-  const withCV = candidates.filter((c) => !!c.cv_html)
-  const withoutCV = candidates.filter((c) => !c.cv_html)
+  const archief = candidates.filter((c) => c.status === 'archief')
+  const inBehandeling = candidates.filter((c) => c.status === 'in_behandeling')
+  const review = candidates.filter((c) => c.status === 'review')
 
   return (
     <div className="flex min-h-screen">
@@ -395,12 +515,12 @@ export default function DashboardPage() {
         <Header profile={profile} />
         <main className="flex-1 p-8">
           <div className="max-w-7xl mx-auto space-y-10">
-            {/* Header */}
+            {/* Page header */}
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="font-serif text-2xl text-harvest-dark">Kandidaten</h1>
                 <p className="text-harvest-muted text-sm mt-1">
-                  {loading ? '…' : `${candidates.length} kandidaten in het archief`}
+                  {loading ? '…' : `${candidates.length} kandidaten totaal`}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -426,55 +546,71 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* CV Archief section */}
+            {/* Section 3: Review */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-serif font-semibold text-lg" style={{ color: '#092B13' }}>
+                  Review
+                </h2>
+                {!loading && review.length > 0 && (
+                  <span
+                    className="px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                    style={{ background: '#9C2A12', color: '#fff' }}
+                  >
+                    {review.length} vereist
+                  </span>
+                )}
+              </div>
+              {loading ? (
+                <p className="text-sm text-harvest-muted italic">Laden…</p>
+              ) : review.length === 0 ? (
+                <p className="text-sm text-harvest-muted italic">Geen kandidaten die review vereisen</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {review.map((c) => (
+                    <ReviewCard key={c.id} candidate={c} />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Section 2: In Behandeling */}
+            <section>
+              <h2 className="font-serif font-semibold text-lg mb-4" style={{ color: '#092B13' }}>
+                In Behandeling
+              </h2>
+              {loading ? (
+                <p className="text-sm text-harvest-muted italic">Laden…</p>
+              ) : inBehandeling.length === 0 ? (
+                <p className="text-sm text-harvest-muted italic">Geen CVs in behandeling</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {inBehandeling.map((c) => (
+                    <InBehandelingCard key={c.id} candidate={c} onDelete={setToDelete} />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Section 1: CV Archief */}
             <section>
               <h2 className="font-serif font-semibold text-lg mb-4" style={{ color: '#092B13' }}>
                 CV Archief
               </h2>
               {loading ? (
                 <p className="text-sm text-harvest-muted italic">Laden…</p>
-              ) : withCV.length === 0 ? (
-                <p className="text-sm text-harvest-muted italic">Nog geen CVs gegenereerd</p>
+              ) : archief.length === 0 ? (
+                <p className="text-sm text-harvest-muted italic">Archief is leeg</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {withCV.map((c) => (
+                  {archief.map((c) => (
                     <ArchiveCard key={c.id} candidate={c} onDelete={setToDelete} />
                   ))}
                 </div>
               )}
             </section>
 
-            {/* In behandeling section */}
-            {!loading && withoutCV.length > 0 && (
-              <section>
-                <h2 className="font-serif font-semibold text-lg mb-4" style={{ color: '#092B13' }}>
-                  In behandeling
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {withoutCV.map((c) => (
-                    <Link
-                      key={c.id}
-                      href={`/candidates/${c.id}`}
-                      className="flex flex-col gap-2 p-[14px_16px] rounded-[6px] border hover:bg-[#EBE2D9] transition-colors"
-                      style={{ background: '#F2EBE5', border: '1px solid rgba(9,40,18,0.08)' }}
-                    >
-                      <div>
-                        <p className="font-serif font-semibold" style={{ fontSize: 14, color: '#092B13' }}>
-                          {c.first_name} {c.last_name}
-                        </p>
-                        <p style={{ fontSize: 12, color: '#5b5750' }}>{c.role}</p>
-                      </div>
-                      <p style={{ fontSize: 10.5, color: '#8a847a' }}>
-                        Door {c.profiles?.full_name || 'Onbekend'} &middot;{' '}
-                        {new Date(c.created_at).toLocaleDateString('nl-NL')}
-                      </p>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Kandidaatuitnodigingen section */}
+            {/* Kandidaatuitnodigingen */}
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-serif font-semibold text-lg" style={{ color: '#092B13' }}>

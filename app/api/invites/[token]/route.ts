@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { generateCV } from '@/lib/cv-generator'
+import type { Candidate } from '@/types'
 
 export async function GET(
   _request: NextRequest,
@@ -30,6 +32,76 @@ export async function GET(
   }
 }
 
+function formatQuestionnaireAnswers(answers: Record<string, unknown>): string {
+  const lines: string[] = []
+
+  if (answers.cijferBachelor) lines.push(`Bachelor cijfer: ${answers.cijferBachelor}`)
+  if (answers.bachelorBegin || answers.bachelorEinde) lines.push(`Bachelor periode: ${answers.bachelorBegin || '?'} - ${answers.bachelorEinde || '?'}`)
+  if (answers.vakkenBachelor) lines.push(`Bachelor vakken: ${answers.vakkenBachelor}`)
+
+  if (answers.cijferMaster) lines.push(`Master cijfer: ${answers.cijferMaster}`)
+  if (answers.masterBegin || answers.masterEinde) lines.push(`Master periode: ${answers.masterBegin || '?'} - ${answers.masterEinde || '?'}`)
+  if (answers.vakkenMaster) lines.push(`Master vakken: ${answers.vakkenMaster}`)
+
+  const thesisBachelor = answers.thesisBachelor as Record<string, string> | undefined
+  if (thesisBachelor?.titel) {
+    lines.push(`Bachelor thesis: ${thesisBachelor.titel} (cijfer: ${thesisBachelor.cijfer || 'n.v.t.'}, periode: ${thesisBachelor.begin || '?'} - ${thesisBachelor.einde || '?'})`)
+  }
+
+  const thesisMaster = answers.thesisMaster as Record<string, string> | undefined
+  if (thesisMaster?.titel) {
+    lines.push(`Master thesis: ${thesisMaster.titel} (cijfer: ${thesisMaster.cijfer || 'n.v.t.'}, periode: ${thesisMaster.begin || '?'} - ${thesisMaster.einde || '?'})`)
+  }
+
+  const extraOpleidingen = answers.extraOpleidingen as Array<Record<string, string>> | undefined
+  if (extraOpleidingen?.length) {
+    lines.push('\nExtra opleidingen:')
+    for (const o of extraOpleidingen) {
+      lines.push(`- ${o.naam} (${o.begindatum || '?'} - ${o.einddatum || '?'}): ${o.onderwerpen || ''}`)
+    }
+  }
+
+  const softwareProjecten = answers.softwareProjecten as Array<Record<string, string>> | undefined
+  if (softwareProjecten?.length) {
+    lines.push('\nSoftwareprojecten:')
+    for (const p of softwareProjecten) {
+      lines.push(`- Doel: ${p.doel || '?'}, Talen: ${p.talen || '?'} (${p.begindatum || '?'} - ${p.einddatum || '?'})`)
+    }
+  }
+
+  const stages = answers.stages as Array<Record<string, string>> | undefined
+  if (stages?.length) {
+    lines.push('\nStages:')
+    for (const s of stages) {
+      lines.push(`- ${s.organisatie} (${s.begindatum || '?'} - ${s.einddatum || '?'}): ${s.tooling || ''}`)
+    }
+  }
+
+  const praktijkProjecten = answers.praktijkProjecten as Array<Record<string, string>> | undefined
+  if (praktijkProjecten?.length) {
+    lines.push('\nPraktijkprojecten:')
+    for (const p of praktijkProjecten) {
+      lines.push(`- ${p.watGedaan || '?'} (${p.begindatum || '?'} - ${p.einddatum || '?'}): tools: ${p.tools || '?'}`)
+    }
+  }
+
+  if (answers.programmeertalen) lines.push(`\nProgrammeertalen: ${answers.programmeertalen}`)
+  if (answers.librariesFrameworks) lines.push(`Libraries & Frameworks: ${answers.librariesFrameworks}`)
+  if (answers.tools) lines.push(`Tools: ${answers.tools}`)
+  if (answers.platforms) lines.push(`Platforms: ${answers.platforms}`)
+  if (answers.technologieToelichting) lines.push(`Technologie toelichting: ${answers.technologieToelichting}`)
+
+  const cloudProjecten = answers.cloudProjecten as Array<Record<string, string>> | undefined
+  if (cloudProjecten?.length) {
+    lines.push('\nCloud projecten:')
+    for (const c of cloudProjecten) {
+      lines.push(`- ${c.project} (${c.begindatum || '?'} - ${c.einddatum || '?'}): ${c.technologieen || ''}`)
+    }
+  }
+
+  return lines.join('\n')
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
@@ -41,7 +113,7 @@ export async function PUT(
     // Fetch the invite first
     const { data: invite, error: fetchError } = await adminClient
       .from('candidate_invites')
-      .select('id, expires_at, status')
+      .select('id, expires_at, status, candidate_name, photo_url')
       .eq('token', token)
       .single()
 
@@ -107,6 +179,70 @@ export async function PUT(
       .single()
 
     if (updateError) throw updateError
+
+    // Auto-generate CV from questionnaire answers (non-blocking)
+    try {
+      const answers = questionnaireAnswers as Record<string, unknown> | null
+      const formattedContent = answers ? formatQuestionnaireAnswers(answers) : ''
+
+      const nameParts = (invite.candidate_name || '').split(' ')
+      const firstName = nameParts[0] || 'Kandidaat'
+      const lastName = nameParts.slice(1).join(' ') || ''
+
+      // Build a minimal candidate object for generateCV
+      const candidateForCV: Candidate = {
+        id: invite.id,
+        created_by: null,
+        first_name: firstName,
+        last_name: lastName,
+        age: null,
+        role: 'Software Engineer',
+        city: '',
+        availability: null,
+        language: 'nl',
+        review_tone: 'formal',
+        contact_person: 'marlie',
+        photo_url: invite.photo_url || null,
+        cv_json: null,
+        cv_html: null,
+        intake_sent_at: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        status: 'review',
+        editors: [],
+        invite_id: invite.id,
+      }
+
+      const intakeData = formattedContent ? { name: `${firstName} ${lastName}`, role: 'Software Engineer', importedContent: formattedContent } : undefined
+
+      const generatedCvHtml = await generateCV(candidateForCV, intakeData)
+
+      const { data: candidateRecord, error: insertError } = await adminClient
+        .from('candidates')
+        .insert({
+          first_name: firstName,
+          last_name: lastName,
+          role: 'Software Engineer',
+          city: '',
+          cv_html: generatedCvHtml,
+          status: 'review',
+          invite_id: invite.id,
+          photo_url: invite.photo_url || null,
+        })
+        .select()
+        .single()
+
+      if (!insertError && candidateRecord) {
+        await adminClient
+          .from('candidate_invites')
+          .update({ candidate_id: candidateRecord.id })
+          .eq('id', invite.id)
+      } else if (insertError) {
+        console.error('Failed to insert candidate:', insertError)
+      }
+    } catch (cvError) {
+      console.error('CV auto-generation failed (submission still succeeded):', cvError)
+    }
 
     return Response.json({ invite: updated })
   } catch (error) {

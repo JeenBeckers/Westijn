@@ -5,6 +5,12 @@ export interface Profile {
   created_at: string
 }
 
+export interface CandidateEditor {
+  user_id: string
+  full_name: string
+  edited_at: string
+}
+
 export interface Candidate {
   id: string
   created_by: string | null
@@ -23,6 +29,9 @@ export interface Candidate {
   intake_sent_at: string | null
   created_at: string
   updated_at: string
+  status: 'review' | 'in_behandeling' | 'archief'
+  editors: CandidateEditor[]
+  invite_id: string | null
   profiles?: Profile
 }
 
