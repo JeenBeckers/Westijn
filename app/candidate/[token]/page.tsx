@@ -29,11 +29,11 @@ function makeItem(fields: Record<string, string>): RepeatableItem {
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-      <div className="px-6 py-3" style={{ background: '#1a2b4b' }}>
+    <div className="rounded-lg overflow-hidden shadow-sm" style={{ border: '1px solid #c8bfb0' }}>
+      <div className="px-6 py-3" style={{ background: '#162518' }}>
         <h2 className="text-white font-semibold text-sm tracking-wide uppercase">{title}</h2>
       </div>
-      <div className="bg-white p-6 space-y-4">{children}</div>
+      <div className="p-6 space-y-4" style={{ backgroundColor: '#f5f0ea' }}>{children}</div>
     </div>
   )
 }
@@ -303,44 +303,52 @@ export default function CandidatePortalPage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ backgroundColor: '#E8DFD0' }}>
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-3xl mx-auto flex items-center gap-4">
-          <Image src="/harvest-logo-dark.png" alt="Harvest" width={120} height={36} className="object-contain" />
-          <span className="text-gray-400">|</span>
-          <span className="text-[#1a2b4b] font-semibold">Kandidaatsportaal</span>
+      <header className="px-6 py-4 shadow-sm" style={{ backgroundColor: '#162518' }}>
+        <div className="max-w-3xl mx-auto flex items-center gap-3">
+          <svg width="24" height="24" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M24 4 L24 44" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M24 36 C20 32 14 32 14 32 C14 32 14 26 20 24 C22 28 24 30 24 32" fill="white" opacity="0.9"/>
+            <path d="M24 36 C28 32 34 32 34 32 C34 32 34 26 28 24 C26 28 24 30 24 32" fill="white" opacity="0.9"/>
+            <path d="M24 28 C20 24 14 24 14 24 C14 24 14 18 20 16 C22 20 24 22 24 24" fill="white" opacity="0.8"/>
+            <path d="M24 28 C28 24 34 24 34 24 C34 24 34 18 28 16 C26 20 24 22 24 24" fill="white" opacity="0.8"/>
+            <path d="M24 20 C20 16 16 15 16 15 C16 15 17 10 22 9 C23 13 24 16 24 18" fill="white" opacity="0.7"/>
+            <path d="M24 20 C28 16 32 15 32 15 C32 15 31 10 26 9 C25 13 24 16 24 18" fill="white" opacity="0.7"/>
+          </svg>
+          <Image src="/harvest-logo-white.png" alt="Harvest" width={110} height={30} className="object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+          <span style={{ color: '#8fad8f' }} className="text-sm">| Kandidaatsportaal</span>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-10">
         {pageStatus === 'expired' && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <p className="text-red-700 font-medium">Deze link is verlopen.</p>
-            <p className="text-red-600 text-sm mt-1">Neem contact op met je Harvest consultant.</p>
+          <div className="rounded-lg p-6 text-center" style={{ backgroundColor: '#f8e8e8', border: '1px solid #e5c5c5' }}>
+            <p className="font-medium" style={{ color: '#8B2020' }}>Deze link is verlopen.</p>
+            <p className="text-sm mt-1" style={{ color: '#8B2020' }}>Neem contact op met je Harvest consultant.</p>
           </div>
         )}
 
         {pageStatus === 'error' && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <p className="text-red-700 font-medium">Ongeldige link.</p>
-            <p className="text-red-600 text-sm mt-1">Neem contact op met je Harvest consultant.</p>
+          <div className="rounded-lg p-6 text-center" style={{ backgroundColor: '#f8e8e8', border: '1px solid #e5c5c5' }}>
+            <p className="font-medium" style={{ color: '#8B2020' }}>Ongeldige link.</p>
+            <p className="text-sm mt-1" style={{ color: '#8B2020' }}>Neem contact op met je Harvest consultant.</p>
           </div>
         )}
 
         {pageStatus === 'submitted' && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
-            <div className="text-4xl mb-4">✓</div>
-            <p className="text-green-800 font-semibold text-lg">Bedankt! Je gegevens zijn ontvangen.</p>
-            <p className="text-green-700 text-sm mt-2">Je consultant neemt contact met je op.</p>
+          <div className="rounded-lg p-8 text-center" style={{ backgroundColor: '#162518', border: '1px solid #2a4a2a' }}>
+            <div className="text-4xl mb-4 text-white">✓</div>
+            <p className="font-semibold text-lg text-white">Bedankt! Je gegevens zijn ontvangen.</p>
+            <p className="text-sm mt-2" style={{ color: '#8fad8f' }}>Je consultant neemt contact met je op.</p>
           </div>
         )}
 
         {pageStatus === 'pending' && invite && (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <h1 className="font-bold text-2xl text-[#1a2b4b]">Welkom, {invite.candidate_name}</h1>
-              <p className="text-gray-500 text-sm mt-1">Vul onderstaande gegevens zo volledig mogelijk in.</p>
+              <h1 className="font-bold text-2xl" style={{ color: '#162518' }}>Welkom, {invite.candidate_name}</h1>
+              <p className="text-sm mt-1" style={{ color: '#4a5e4a' }}>Vul onderstaande gegevens zo volledig mogelijk in.</p>
             </div>
 
             {/* Section 1: Profielfoto */}
@@ -350,7 +358,7 @@ export default function CandidatePortalPage({
                 type="file"
                 accept="image/jpeg,image/png"
                 onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
-                className="block text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-[#1a2b4b] file:text-white hover:file:bg-[#c1272d] file:cursor-pointer"
+                className="block text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-[#162518] file:text-white hover:file:bg-[#8B2020] file:cursor-pointer"
               />
               {photoFile && <p className="text-xs text-gray-500">{photoFile.name}</p>}
             </SectionCard>
@@ -513,7 +521,7 @@ export default function CandidatePortalPage({
                   accept="application/pdf"
                   required
                   onChange={(e) => setCvFile(e.target.files?.[0] ?? null)}
-                  className="block text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-[#1a2b4b] file:text-white hover:file:bg-[#c1272d] file:cursor-pointer"
+                  className="block text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-[#162518] file:text-white hover:file:bg-[#8B2020] file:cursor-pointer"
                 />
                 {cvFile && <p className="text-xs text-gray-500 mt-1">{cvFile.name}</p>}
               </div>
@@ -524,14 +532,14 @@ export default function CandidatePortalPage({
                   type="file"
                   accept="application/pdf"
                   onChange={(e) => setGradeListFile(e.target.files?.[0] ?? null)}
-                  className="block text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-[#1a2b4b] file:text-white hover:file:bg-[#c1272d] file:cursor-pointer"
+                  className="block text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-[#162518] file:text-white hover:file:bg-[#8B2020] file:cursor-pointer"
                 />
                 {gradeListFile && <p className="text-xs text-gray-500 mt-1">{gradeListFile.name}</p>}
               </div>
             </SectionCard>
 
             {submitError && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-700">
+              <div className="rounded-md p-3 text-sm" style={{ backgroundColor: '#f8e8e8', border: '1px solid #e5c5c5', color: '#8B2020' }}>
                 {submitError}
               </div>
             )}
@@ -539,10 +547,10 @@ export default function CandidatePortalPage({
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3 rounded-lg font-semibold text-white transition-colors disabled:opacity-60"
-              style={{ background: submitting ? '#999' : '#c1272d' }}
+              className="w-full py-3 rounded-full font-semibold text-white transition-colors disabled:opacity-60"
+              style={{ background: submitting ? '#999' : '#8B2020' }}
             >
-              {submitting ? 'Versturen…' : 'Verstuur mijn gegevens'}
+              {submitting ? 'Versturen…' : 'Verstuur mijn gegevens →'}
             </button>
           </form>
         )}
