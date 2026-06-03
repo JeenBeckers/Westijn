@@ -65,8 +65,17 @@ export async function POST(req: NextRequest) {
       if (url) cvUrl = url
     }
 
-    // Map skills
-    const skills: string[] = (candidate.cv_json?.skills || []).map((s: { name: string }) => s.name).filter(Boolean)
+    // Map skills - prefer cv_json, fall back to parsing cv_html
+    let skills: string[] = (candidate.cv_json?.skills || []).map((s: { name: string }) => s.name).filter(Boolean)
+
+    if (!skills.length && candidate.cv_html) {
+      // Extract skills from HTML - look for skill tags/chips
+      const skillMatches = candidate.cv_html.match(/class="[^"]*skill[^"]*"[^>]*>([^<]{2,40})<\/[a-z]+>/gi) || []
+      skills = skillMatches
+        .map((m: string) => m.replace(/<[^>]+>/g, '').trim())
+        .filter((s: string) => s.length > 1 && s.length < 40)
+        .slice(0, 20)
+    }
 
     // Build CV Tool candidate row
     const row = {
