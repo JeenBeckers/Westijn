@@ -60,6 +60,20 @@ ${importedContentBlock}
 CANDIDATE DATA:
 ${JSON.stringify({ ...candidate, ...cvData }, null, 2)}
 
+TYPOGRAPHY RULE (strictly enforced):
+- NEVER use em-dashes (—) anywhere in the CV text content.
+- Replace any em-dash with a comma, colon, hyphen (-), or rewrite the sentence.
+- This applies to ALL text: review, education, skills, work experience, projects, tagline.
+- The only exception is the review-mark label (e.g. "— Review") which is a decorative element, not body text.
+
+KEYWORD TAGS RULE (strictly enforced):
+- The red keyword tags (.kw .tag elements) under work experience entries and project entries must contain ONLY technical skills and tools.
+- Examples of what belongs: Python, React, PyTorch, Docker, SQL, Azure, Git, REST API, scikit-learn, MONAI, etc.
+- Examples of what does NOT belong: "Teamwork", "Stakeholder management", "Agile/Scrum" (as a soft skill), "Communication", "Leadership", "Problem solving", etc.
+- Agile/Scrum is acceptable ONLY if it refers to the methodology used in the project (not as a soft skill label).
+- Soft skills belong ONLY in the `.pill.soft` elements on the Skills page — never in `.kw .tag` elements.
+- Keep the tag list short: max 6 tags per entry. Prefer the most specific and technical tags.
+
 OUTPUT RULES:
 - Output ONLY the complete HTML document, starting with <!DOCTYPE html>
 - No markdown, no \`\`\`html fences, no explanations before or after
@@ -468,6 +482,9 @@ Follow these instructions while respecting all page limits and layout rules abov
     )
   }
 
+  // Post-process: remove em-dashes from text content (not inside HTML tags)
+  html = html.replace(/—/g, '-')
+
   return html.trim()
 }
 
@@ -512,7 +529,7 @@ export async function refineCV(
         content: userContent,
       },
     ],
-    system: 'You are a professional CV designer for Harvest Talent. Modify the provided HTML CV as instructed. Return ONLY the complete HTML document starting with <!DOCTYPE html>. No markdown fences, no explanation.',
+    system: 'You are a professional CV designer for Harvest Talent. Modify the provided HTML CV as instructed. Return ONLY the complete HTML document starting with <!DOCTYPE html>. No markdown fences, no explanation.\n\nTYPOGRAPHY RULE (strictly enforced): NEVER use em-dashes (—) anywhere in the CV text content. Replace any em-dash with a comma, colon, hyphen (-), or rewrite the sentence. This applies to ALL text: review, education, skills, work experience, projects, tagline. The only exception is the review-mark label (e.g. "— Review") which is a decorative element, not body text.\n\nKEYWORD TAGS RULE (strictly enforced): The red keyword tags (.kw .tag elements) under work experience entries and project entries must contain ONLY technical skills and tools. Soft skills belong ONLY in the .pill.soft elements on the Skills page — never in .kw .tag elements. Keep the tag list short: max 6 tags per entry.',
   })
 
   const content = message.content[0]
@@ -526,6 +543,9 @@ export async function refineCV(
     html = htmlMatch[1]
   }
   html = html.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '')
+
+  // Post-process: remove em-dashes from text content (not inside HTML tags)
+  html = html.replace(/—/g, '-')
 
   return html.trim()
 }

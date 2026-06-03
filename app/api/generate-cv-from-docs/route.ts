@@ -50,7 +50,6 @@ function buildDocumentCVPrompt(opts: {
   contactPerson: string
   additionalInstructions: string
   hasPhoto: boolean
-  photoTag: string
   contactBlocksHTML: string
 }): string {
   const {
@@ -64,7 +63,6 @@ function buildDocumentCVPrompt(opts: {
     contactPerson,
     additionalInstructions,
     hasPhoto,
-    photoTag,
     contactBlocksHTML,
   } = opts
 
@@ -98,6 +96,20 @@ SOURCE DOCUMENTS: The attached documents contain all candidate information (CV/r
 - Hobbies/interests
 - Any additional context from interview notes or questionnaire
 
+TYPOGRAPHY RULE (strictly enforced):
+- NEVER use em-dashes (—) anywhere in the CV text content.
+- Replace any em-dash with a comma, colon, hyphen (-), or rewrite the sentence.
+- This applies to ALL text: review, education, skills, work experience, projects, tagline.
+- The only exception is the review-mark label (e.g. "— Review") which is a decorative element, not body text.
+
+KEYWORD TAGS RULE (strictly enforced):
+- The red keyword tags (.kw .tag elements) under work experience entries and project entries must contain ONLY technical skills and tools.
+- Examples of what belongs: Python, React, PyTorch, Docker, SQL, Azure, Git, REST API, scikit-learn, MONAI, etc.
+- Examples of what does NOT belong: "Teamwork", "Stakeholder management", "Agile/Scrum" (as a soft skill), "Communication", "Leadership", "Problem solving", etc.
+- Agile/Scrum is acceptable ONLY if it refers to the methodology used in the project (not as a soft skill label).
+- Soft skills belong ONLY in the `.pill.soft` elements on the Skills page — never in `.kw .tag` elements.
+- Keep the tag list short: max 6 tags per entry. Prefer the most specific and technical tags.
+
 OUTPUT RULES:
 - Output ONLY the complete HTML document, starting with <!DOCTYPE html>
 - No markdown, no \`\`\`html fences, no explanations before or after
@@ -119,8 +131,7 @@ PAGE CONTENT RULES (FIXED — never mix across pages):
 - Left/sidebar column does NOT count toward character limits
 - Count characters carefully and cut/summarize content to stay within limits
 
-PHOTO PLACEHOLDER (use exactly as-is — DO NOT change):
-${photoTag}
+PHOTO PLACEHOLDER: In the sidebar photo-wrap div, always put exactly [PHOTO_PLACEHOLDER] as a literal string — do NOT generate an <img> tag or any other element there. The TypeScript code will replace [PHOTO_PLACEHOLDER] with the actual image after generation.
 
 CONTACT BLOCKS (use exactly as-is — DO NOT change):
 ${contactBlocksHTML}
@@ -461,8 +472,8 @@ INSTRUCTIONS FOR FILLING IN THE TEMPLATE:
 9. Output ONLY the HTML. Do not add any text before <!DOCTYPE html> or after </html>.
 ${
   hasPhoto
-    ? 'PHOTO: A photo has been provided as the image attachment. The photo tag above already contains the correct <img> element — use it exactly.'
-    : `PHOTO: No photo provided. Use this initials placeholder: <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:'Source Serif 4',serif;font-size:64px;color:rgba(9,40,18,0.32);">${firstName[0] || '?'}${lastName[0] || '?'}</div>`
+    ? 'PHOTO: A photo has been provided. Place [PHOTO_PLACEHOLDER] exactly in the photo-wrap div — the TypeScript post-processor will inject the actual <img> tag.'
+    : `PHOTO: No photo provided. Place [PHOTO_PLACEHOLDER] exactly in the photo-wrap div — the TypeScript post-processor will inject an initials placeholder.`
 }
 ${
   additionalInstructions
@@ -593,12 +604,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Build photo tag for the template
-    const initials = `${firstName[0] || '?'}${lastName[0] || '?'}`
-    const photoTag = photoUrl
-      ? `<img src="${photoUrl}" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 18%;display:block;">`
-      : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:'Source Serif 4',serif;font-size:64px;color:rgba(9,40,18,0.32);">${initials}</div>`
-
     // Build contact blocks HTML
     const contacts = CONTACT_PERSONS[contactPerson] || CONTACT_PERSONS.marlie
     const contactBlocksHTML = buildContactHTML(contacts)
@@ -623,7 +628,6 @@ export async function POST(request: NextRequest) {
       contactPerson,
       additionalInstructions,
       hasPhoto: !!photoUrl,
-      photoTag,
       contactBlocksHTML,
     })
 
@@ -656,16 +660,23 @@ export async function POST(request: NextRequest) {
     if (htmlMatch) html = htmlMatch[1]
     html = html.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '')
 
-    // Ensure photo placeholder is replaced with actual photo tag
-    html = html.replace(/\[PHOTO_PLACEHOLDER\]/g, photoTag)
-
-    // If candidate has a real photo URL, ensure any invented src is replaced
+    // Inject photo into CV HTML
     if (photoUrl) {
+      const photoImgTag = `<img src="${photoUrl}" alt="${firstName} ${lastName}" style="width:100%;height:100%;object-fit:cover;object-position:center 18%;display:block;">`
+      html = html.replace('[PHOTO_PLACEHOLDER]', photoImgTag)
+      // Also fix any photo-wrap that Claude may have generated without the placeholder
       html = html.replace(
-        /(<div class="photo-wrap">[^<]*<img[^>]+src=")(?!https?:\/\/)[^"]*("[^>]*>)/g,
-        `$1${photoUrl}$2`
+        /<div class="photo-wrap">[\s\S]*?<\/div>/,
+        `<div class="photo-wrap">${photoImgTag}</div>`
       )
+    } else {
+      // No photo — replace placeholder with initials div
+      const initialsDiv = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:'Source Serif 4',serif;font-size:64px;color:rgba(9,40,18,0.32);">${firstName[0] || '?'}${lastName[0] || '?'}</div>`
+      html = html.replace(/\[PHOTO_PLACEHOLDER\]/g, initialsDiv)
     }
+
+    // Post-process: remove em-dashes from text content
+    html = html.replace(/—/g, '-')
 
     html = html.trim()
 
