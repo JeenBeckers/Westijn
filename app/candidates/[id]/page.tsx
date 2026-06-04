@@ -9,7 +9,7 @@ import { CVPreview } from '@/components/cv/CVPreview'
 import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
-import { Wand2, Send, ArrowLeft, User, MapPin, Clock, Globe, ArrowUpRight } from 'lucide-react'
+import { Wand2, Send, ArrowLeft, User, MapPin, Clock, Globe, ArrowUpRight, ExternalLink } from 'lucide-react'
 import type { Candidate, Profile, IntakeResponse } from '@/types'
 
 export default function CandidateDetailPage() {
@@ -44,6 +44,7 @@ export default function CandidateDetailPage() {
   const [statusUpdating, setStatusUpdating] = useState(false)
   const [pushing, setPushing] = useState(false)
   const [pushSuccess, setPushSuccess] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -246,6 +247,52 @@ export default function CandidateDetailPage() {
     }
   }
 
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !candidate) return
+    setUploadingPhoto(true)
+    setError(null)
+    try {
+      // Compress via Canvas API
+      const bitmap = await createImageBitmap(file)
+      const maxSize = 600
+      const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(bitmap.width * scale)
+      canvas.height = Math.round(bitmap.height * scale)
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+      const blob = await new Promise<Blob>((resolve) =>
+        canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.75)
+      )
+
+      const path = `photos/${candidate.id}/photo.jpg`
+      const { error: uploadError } = await supabase.storage
+        .from('candidate-uploads')
+        .upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+      if (uploadError) throw uploadError
+
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from('candidate-uploads')
+        .createSignedUrl(path, 315360000)
+      if (signedError) throw signedError
+
+      const photoUrl = signedData.signedUrl
+      const { error: dbError } = await supabase
+        .from('candidates')
+        .update({ photo_url: photoUrl })
+        .eq('id', candidate.id)
+      if (dbError) throw dbError
+
+      setCandidate(prev => prev ? { ...prev, photo_url: photoUrl } : null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Foto uploaden mislukt')
+    } finally {
+      setUploadingPhoto(false)
+      e.target.value = ''
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-harvest-bg">
@@ -353,13 +400,40 @@ export default function CandidateDetailPage() {
                     <CardTitle>Kandidaatgegevens</CardTitle>
                   </CardHeader>
                   <div className="space-y-3 text-sm">
-                    {candidate.photo_url && (
-                      <img
-                        src={candidate.photo_url}
-                        alt="Foto"
-                        className="w-20 h-20 rounded-full object-cover border-2 border-harvest-brown mb-3"
-                      />
-                    )}
+                    <div className="flex flex-col gap-2">
+                      {candidate.photo_url && (
+                        <img
+                          src={candidate.photo_url}
+                          alt="Foto"
+                          className="w-20 h-20 rounded-full object-cover border-2 border-harvest-brown"
+                        />
+                      )}
+                      <div className="flex items-center gap-2">
+                        <label className="cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handlePhotoUpload}
+                            disabled={uploadingPhoto}
+                          />
+                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs border border-harvest-muted rounded text-harvest-muted hover:border-harvest-green hover:text-harvest-green transition-colors">
+                            {uploadingPhoto ? (
+                              <span className="inline-block w-3 h-3 border border-harvest-green border-t-transparent rounded-full animate-spin" />
+                            ) : null}
+                            Foto vervangen
+                          </span>
+                        </label>
+                      </div>
+                      <a
+                        href="https://www.remove.bg"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-harvest-muted underline flex items-center gap-1"
+                      >
+                        <ExternalLink size={11} /> Achtergrond verwijderen via remove.bg
+                      </a>
+                    </div>
                     <div className="flex items-center gap-2 text-harvest-muted">
                       <User size={14} />
                       <span>{candidate.age ? `${candidate.age} jaar` : 'Leeftijd onbekend'}</span>
