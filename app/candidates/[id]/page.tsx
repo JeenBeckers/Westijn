@@ -9,7 +9,7 @@ import { CVPreview } from '@/components/cv/CVPreview'
 import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
-import { Wand2, Send, ArrowLeft, User, MapPin, Clock, Globe, ArrowUpRight, ExternalLink } from 'lucide-react'
+import { Wand2, Send, ArrowLeft, User, MapPin, Clock, Globe, ArrowUpRight } from 'lucide-react'
 import type { Candidate, Profile, IntakeResponse } from '@/types'
 
 export default function CandidateDetailPage() {
@@ -45,6 +45,15 @@ export default function CandidateDetailPage() {
   const [pushing, setPushing] = useState(false)
   const [pushSuccess, setPushSuccess] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [photoStatus, setPhotoStatus] = useState<'' | 'removing' | 'uploading'>('')
+
+  // Per-section improvement state
+  const [improvePanelOpen, setImprovePanelOpen] = useState(false)
+  const [improveSection, setImproveSection] = useState('werkervaring')
+  const [improveInstructions, setImproveInstructions] = useState('')
+  const [improving, setImproving] = useState(false)
+  const [improvedHtml, setImprovedHtml] = useState<string | null>(null)
+  const [improveError, setImproveError] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -247,14 +256,143 @@ export default function CandidateDetailPage() {
     }
   }
 
+  // Extract a named section from full CV HTML using heuristics on class names / headings
+  function extractSectionHtml(cvHtml: string, sectionName: string): string {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(cvHtml, 'text/html')
+
+    const sectionMap: Record<string, string[]> = {
+      werkervaring: ['werkervaring', 'work experience', 'werkervar'],
+      opleiding: ['opleiding', 'education', 'opleidingen'],
+      skills: ['skills', 'vaardigheden', 'competenties'],
+      projecten: ['projecten', 'projects'],
+      talen: ['talen', 'languages'],
+      interesses: ['interesses', 'hobbies', 'hobbys', 'interests'],
+      samenvatting: ['samenvatting', 'profiel', 'over ', 'beoordeling', 'review'],
+      relevanteSkills: ['relevante skills', 'relevante vaardigheden', 'key skills'],
+    }
+
+    const keywords = sectionMap[sectionName] || [sectionName.toLowerCase()]
+
+    // Find h2 headings that match the section name
+    const headings = doc.querySelectorAll('h2')
+    for (const h2 of headings) {
+      const text = h2.textContent?.toLowerCase() || ''
+      if (keywords.some(kw => text.includes(kw))) {
+        // Return the closest ancestor div that wraps this section
+        const sectionDiv = h2.closest('.section-head')?.parentElement
+        if (sectionDiv) return sectionDiv.outerHTML
+        return h2.parentElement?.outerHTML || h2.outerHTML
+      }
+    }
+
+    // Fallback: find elements with data-section attribute or matching class
+    const allDivs = doc.querySelectorAll('[class]')
+    for (const el of allDivs) {
+      const cls = el.className?.toLowerCase() || ''
+      if (keywords.some(kw => cls.includes(kw.replace(' ', '-')))) {
+        return (el as HTMLElement).outerHTML
+      }
+    }
+
+    return ''
+  }
+
+  function patchSectionHtml(cvHtml: string, sectionName: string, newSectionHtml: string): string {
+    const original = extractSectionHtml(cvHtml, sectionName)
+    if (!original) return cvHtml
+    return cvHtml.replace(original, newSectionHtml)
+  }
+
+  async function handleImproveSection() {
+    if (!candidate?.cv_html) return
+    setImproving(true)
+    setImproveError(null)
+    setImprovedHtml(null)
+
+    const sectionHtml = extractSectionHtml(candidate.cv_html, improveSection)
+    if (!sectionHtml) {
+      setImproveError(`Sectie "${improveSection}" niet gevonden in het CV. Probeer een andere sectie.`)
+      setImproving(false)
+      return
+    }
+
+    try {
+      const candidateContext = `${candidate.first_name} ${candidate.last_name}, ${candidate.role || 'kandidaat'}${candidate.city ? `, ${candidate.city}` : ''}`
+      const res = await fetch('/api/improve-section', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sectionHtml,
+          sectionName: improveSection,
+          candidateContext,
+          extraInstructions: improveInstructions || undefined,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Verbeteren mislukt')
+      }
+      const { improvedHtml: html } = await res.json()
+      setImprovedHtml(html)
+    } catch (err) {
+      setImproveError(err instanceof Error ? err.message : 'Verbeteren mislukt')
+    } finally {
+      setImproving(false)
+    }
+  }
+
+  async function handleAcceptImprovement() {
+    if (!candidate?.cv_html || !improvedHtml) return
+    const updatedHtml = patchSectionHtml(candidate.cv_html, improveSection, improvedHtml)
+    const { error: dbError } = await supabase
+      .from('candidates')
+      .update({ cv_html: updatedHtml, updated_at: new Date().toISOString() })
+      .eq('id', candidate.id)
+    if (dbError) {
+      setImproveError(dbError.message)
+      return
+    }
+    setCandidate(prev => prev ? { ...prev, cv_html: updatedHtml } : null)
+    setSavedAt(new Date())
+    setImprovedHtml(null)
+    setImproveInstructions('')
+    await trackEditor()
+  }
+
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !candidate) return
     setUploadingPhoto(true)
+    setPhotoStatus('removing')
     setError(null)
     try {
-      // Compress via Canvas API
-      const bitmap = await createImageBitmap(file)
+      // Step 1: Remove background using @imgly/background-removal (browser-based, no API key)
+      const { default: removeBackground } = await import('@imgly/background-removal')
+      const transparentBlob = await removeBackground(file)
+
+      // Step 2: Composite onto harvest beige background using Canvas
+      const img = new Image()
+      img.src = URL.createObjectURL(transparentBlob)
+      await new Promise<void>((r) => { img.onload = () => r() })
+
+      const bgCanvas = document.createElement('canvas')
+      bgCanvas.width = img.naturalWidth
+      bgCanvas.height = img.naturalHeight
+      const bgCtx = bgCanvas.getContext('2d')!
+      bgCtx.fillStyle = '#E8DFD0' // harvest beige
+      bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height)
+      bgCtx.drawImage(img, 0, 0)
+      URL.revokeObjectURL(img.src)
+
+      const processedBlob = await new Promise<Blob>((resolve) =>
+        bgCanvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.85)
+      )
+
+      setPhotoStatus('uploading')
+
+      // Step 3: Compress via Canvas API (resize to max 600px)
+      const bitmap = await createImageBitmap(processedBlob)
       const maxSize = 600
       const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height))
       const canvas = document.createElement('canvas')
@@ -289,6 +427,7 @@ export default function CandidateDetailPage() {
       setError(err instanceof Error ? err.message : 'Foto uploaden mislukt')
     } finally {
       setUploadingPhoto(false)
+      setPhotoStatus('')
       e.target.value = ''
     }
   }
@@ -421,18 +560,14 @@ export default function CandidateDetailPage() {
                             {uploadingPhoto ? (
                               <span className="inline-block w-3 h-3 border border-harvest-green border-t-transparent rounded-full animate-spin" />
                             ) : null}
-                            Foto vervangen
+                            {photoStatus === 'removing'
+                              ? 'Achtergrond verwijderen…'
+                              : photoStatus === 'uploading'
+                              ? 'Uploaden…'
+                              : 'Foto vervangen'}
                           </span>
                         </label>
                       </div>
-                      <a
-                        href="https://www.remove.bg"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-harvest-muted underline flex items-center gap-1"
-                      >
-                        <ExternalLink size={11} /> Achtergrond verwijderen via remove.bg
-                      </a>
                     </div>
                     <div className="flex items-center gap-2 text-harvest-muted">
                       <User size={14} />
@@ -586,6 +721,98 @@ export default function CandidateDetailPage() {
                         </Button>
                       </div>
                     </Card>
+
+                    {/* Per-section AI improvement */}
+                    <div style={{ background: '#162518', borderRadius: '8px', overflow: 'hidden' }}>
+                      <button
+                        onClick={() => { setImprovePanelOpen(o => !o); setImprovedHtml(null); setImproveError(null) }}
+                        className="w-full flex items-center justify-between px-4 py-3 text-left"
+                        style={{ background: 'transparent' }}
+                      >
+                        <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#E8DFD0' }}>
+                          ✨ Per sectie verbeteren met Claude
+                        </span>
+                        <span style={{ color: '#E8DFD0', fontSize: '14px' }}>
+                          {improvePanelOpen ? '▾' : '▸'}
+                        </span>
+                      </button>
+
+                      {improvePanelOpen && (
+                        <div className="px-4 pb-4 space-y-3">
+                          <div>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#E8DFD0', marginBottom: '6px' }}>
+                              Sectie
+                            </label>
+                            <select
+                              value={improveSection}
+                              onChange={(e) => { setImproveSection(e.target.value); setImprovedHtml(null); setImproveError(null) }}
+                              style={{ width: '100%', padding: '8px 12px', fontSize: '13px', background: '#E8DFD0', color: '#162518', border: 'none', borderRadius: '6px', fontFamily: 'inherit' }}
+                            >
+                              <option value="werkervaring">Werkervaring</option>
+                              <option value="opleiding">Opleiding</option>
+                              <option value="skills">Skills</option>
+                              <option value="samenvatting">Samenvatting / Profiel / Beoordeling</option>
+                              <option value="projecten">Projecten</option>
+                              <option value="talen">Talen</option>
+                              <option value="interesses">Interesses & hobbies</option>
+                              <option value="relevanteSkills">Relevante skills</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#E8DFD0', marginBottom: '6px' }}>
+                              Extra instructies (optioneel)
+                            </label>
+                            <textarea
+                              value={improveInstructions}
+                              onChange={(e) => setImproveInstructions(e.target.value)}
+                              placeholder="Bijv. maak beknopter, benadruk leiderschapskwaliteiten…"
+                              rows={2}
+                              style={{ width: '100%', padding: '8px 12px', fontSize: '13px', background: '#E8DFD0', color: '#162518', border: 'none', borderRadius: '6px', resize: 'none', fontFamily: 'inherit' }}
+                            />
+                          </div>
+
+                          <button
+                            onClick={handleImproveSection}
+                            disabled={improving}
+                            style={{ background: '#d94f4f', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, cursor: improving ? 'not-allowed' : 'pointer', opacity: improving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            {improving && <span style={{ display: 'inline-block', width: '12px', height: '12px', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />}
+                            {improving ? 'Claude werkt…' : 'Verbeter deze sectie'}
+                          </button>
+
+                          {improveError && (
+                            <p style={{ fontSize: '12px', color: '#f87171', margin: 0 }}>{improveError}</p>
+                          )}
+
+                          {improvedHtml && (
+                            <div style={{ background: '#E8DFD0', borderRadius: '6px', padding: '12px' }}>
+                              <p style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#162518', marginBottom: '8px' }}>
+                                Verbeterde sectie — preview
+                              </p>
+                              <div
+                                style={{ background: '#FFFBF5', borderRadius: '4px', padding: '12px', fontSize: '12px', lineHeight: 1.5, color: '#1c1f1a', maxHeight: '220px', overflowY: 'auto', fontFamily: 'Libre Franklin, sans-serif' }}
+                                dangerouslySetInnerHTML={{ __html: improvedHtml }}
+                              />
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                                <button
+                                  onClick={handleAcceptImprovement}
+                                  style={{ background: '#162518', color: '#E8DFD0', border: 'none', borderRadius: '6px', padding: '7px 14px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                  Overnemen
+                                </button>
+                                <button
+                                  onClick={() => { setImprovedHtml(null) }}
+                                  style={{ background: 'transparent', color: '#162518', border: '1px solid rgba(22,37,24,0.4)', borderRadius: '6px', padding: '7px 14px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                  Negeren
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Per-section refinement */}
                     <div style={{ background: '#F2EBE5' }} className="rounded-lg overflow-hidden">
