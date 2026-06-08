@@ -46,6 +46,9 @@ export default function CandidateDetailPage() {
   const [pushSuccess, setPushSuccess] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [photoStatus, setPhotoStatus] = useState<'' | 'removing' | 'uploading'>('')
+  const [editingAge, setEditingAge] = useState(false)
+  const [ageInput, setAgeInput] = useState<string>('')
+  const [savingAge, setSavingAge] = useState(false)
 
   // Per-section improvement state
   const [improvePanelOpen, setImprovePanelOpen] = useState(false)
@@ -360,6 +363,22 @@ export default function CandidateDetailPage() {
     await trackEditor()
   }
 
+  async function handleSaveAge() {
+    if (!candidate) return
+    const newAge = ageInput === '' ? null : parseInt(ageInput, 10)
+    if (ageInput !== '' && (isNaN(newAge!) || newAge! < 16 || newAge! > 80)) return
+    setSavingAge(true)
+    const { error: dbError } = await supabase
+      .from('candidates')
+      .update({ age: newAge })
+      .eq('id', candidate.id)
+    setSavingAge(false)
+    if (!dbError) {
+      setCandidate(prev => prev ? { ...prev, age: newAge } : null)
+      setEditingAge(false)
+    }
+  }
+
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !candidate) return
@@ -368,7 +387,8 @@ export default function CandidateDetailPage() {
     setError(null)
     try {
       // Step 1: Remove background using @imgly/background-removal (browser-based, no API key)
-      const { default: removeBackground } = await import('@imgly/background-removal')
+      const bgRemovalModule = await import('@imgly/background-removal')
+      const removeBackground = bgRemovalModule.default as unknown as (input: File) => Promise<Blob>
       const transparentBlob = await removeBackground(file)
 
       // Step 2: Composite onto harvest beige background using Canvas
@@ -571,7 +591,37 @@ export default function CandidateDetailPage() {
                     </div>
                     <div className="flex items-center gap-2 text-harvest-muted">
                       <User size={14} />
-                      <span>{candidate.age ? `${candidate.age} jaar` : 'Leeftijd onbekend'}</span>
+                      {editingAge ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min={16}
+                            max={80}
+                            value={ageInput}
+                            onChange={e => setAgeInput(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleSaveAge(); if (e.key === 'Escape') setEditingAge(false) }}
+                            autoFocus
+                            className="w-16 px-1.5 py-0.5 text-sm border border-harvest-green rounded focus:outline-none focus:ring-1 focus:ring-harvest-green"
+                            placeholder="leeftijd"
+                          />
+                          <button
+                            onClick={handleSaveAge}
+                            disabled={savingAge}
+                            className="text-xs px-2 py-0.5 rounded bg-harvest-green text-white hover:opacity-90 disabled:opacity-50"
+                          >
+                            {savingAge ? '…' : 'Opslaan'}
+                          </button>
+                          <button onClick={() => setEditingAge(false)} className="text-xs text-harvest-muted hover:text-harvest-dark">✕</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setAgeInput(candidate.age ? String(candidate.age) : ''); setEditingAge(true) }}
+                          className="hover:text-harvest-dark underline decoration-dotted cursor-pointer text-sm"
+                          title="Klik om leeftijd te wijzigen"
+                        >
+                          {candidate.age ? `${candidate.age} jaar` : 'Leeftijd onbekend'}
+                        </button>
+                      )}
                     </div>
                     {candidate.city && (
                       <div className="flex items-center gap-2 text-harvest-muted">
