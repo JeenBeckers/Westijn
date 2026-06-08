@@ -97,19 +97,41 @@ SOURCE DOCUMENTS: The attached documents contain all candidate information (CV/r
 - Hobbies/interests
 - Any additional context from interview notes or questionnaire
 
+TONE OF VOICE (strictly enforced — this is the Harvest writing style):
+The "Over [naam]" / review section must follow this exact style, based on real Harvest CVs:
+- Open with "Graag stel ik je voor aan [voornaam]." OR directly "[Voornaam] is een [eigenschap] en [eigenschap] [rol]..."
+- Write in warm, personal, yet professional Dutch. Third person throughout.
+- Structure the intro as: personal qualities first → academic background (specific degrees, universities, thesis) → work experience highlights (specific companies, projects, achievements by name) → personal note (hobbies, volunteer work, coaching) → closing ambition sentence.
+- Be specific and concrete: name the exact university, company, project, role, result. Avoid vague generalisations.
+- The tone is enthusiastic but credible — not marketing speak. Think: a colleague introducing a talented friend.
+- Sentences flow naturally. Vary sentence length. Use connecting words ("Zo heeft hij...", "Naast zijn studie...", "In zijn vrije tijd...").
+- End with what the candidate is looking for: "is op zoek naar een organisatie waar hij/zij..." or similar.
+- NEVER use hollow phrases like "passie voor", "hands-on", "gedreven professional", "track record".
+- Write 2-4 natural paragraphs. No bullet points in the review section.
+
+LOCATION RULE (strictly enforced):
+- Use ONLY the city name. Examples: "Rotterdam", "Amsterdam", "Eindhoven", "Delft".
+- NEVER add country, region, or any geographic qualifier like "Nederland", "the Netherlands", "NL".
+- If the location contains a comma (e.g. "Nijmegen, Nederland"), strip everything after the comma.
+- This applies to: sidebar Woonplaats, entry-org fields, and anywhere else location appears.
+
+HOBBIES RULE (strictly enforced):
+- Only include genuine leisure activities: sports (hardlopen, wielrennen, hockey, voetbal, schaatsen), music (piano, gitaar), travel, cooking, reading, volunteering, etc.
+- NEVER include work-related interests or professional/technical topics such as: energietransitie, verduurzaming, AI, digitalisering, innovatie, technology trends, sustainability, or similar.
+- If the source documents include such topics under hobbies/interests, replace them with personal leisure activities or omit them entirely.
+
 TYPOGRAPHY RULE (strictly enforced):
-- NEVER use em-dashes (—) anywhere in the CV text content.
-- Replace any em-dash with a comma, colon, hyphen (-), or rewrite the sentence.
+- NEVER use em-dashes (—) or en-dashes (–) anywhere in the CV text content.
+- Replace any em-dash or en-dash with a comma, colon, hyphen (-), or rewrite the sentence.
 - This applies to ALL text: review, education, skills, work experience, projects, tagline.
-- The only exception is the review-mark label (e.g. "— Review") which is a decorative element, not body text.
 
 KEYWORD TAGS RULE (strictly enforced):
-- The red keyword tags (.kw .tag elements) under work experience entries and project entries must contain ONLY technical skills and tools.
-- Examples of what belongs: Python, React, PyTorch, Docker, SQL, Azure, Git, REST API, scikit-learn, MONAI, etc.
-- Examples of what does NOT belong: "Teamwork", "Stakeholder management", "Agile/Scrum" (as a soft skill), "Communication", "Leadership", "Problem solving", etc.
-- Agile/Scrum is acceptable ONLY if it refers to the methodology used in the project (not as a soft skill label).
-- Soft skills belong ONLY in the '.pill.soft' elements on the Skills page — never in '.kw .tag' elements.
-- Keep the tag list short: max 6 tags per entry. Prefer the most specific and technical tags.
+- The red keyword tags (.kw elements) under work experience entries and project entries must contain ONLY technical skills and tools.
+- Examples of what belongs: Python, React, PyTorch, Docker, SQL, Azure, Git, REST API, scikit-learn, etc.
+- Examples of what does NOT belong: "Teamwork", "Stakeholder management", "Communication", "Leadership", "Problem solving".
+- Agile/Scrum is acceptable ONLY if it refers to the methodology used in the project.
+- Soft skills belong ONLY in the '.pill.soft' elements on the Skills page.
+- Keep the tag list short: max 6 tags per entry.
 
 OUTPUT RULES:
 - Output ONLY the complete HTML document, starting with <!DOCTYPE html>
@@ -251,7 +273,7 @@ body { background: #E8E0D8; font-family: 'Libre Franklin', sans-serif; padding: 
   <!-- PAGE 1 -->
   <div class="page">
     <div class="page-header">
-      <div class="logo-text">HARVEST</div>
+      <img src="https://harvest-cv-tool.vercel.app/harvest-logo-white.png" alt="Harvest" style="height:26px;display:block;">
       <div class="header-meta">Curriculum vitae · Confidential</div>
     </div>
     <div class="page-body">
@@ -302,7 +324,7 @@ body { background: #E8E0D8; font-family: 'Libre Franklin', sans-serif; padding: 
       <div class="main">
         <div class="main-p1">
           <div class="eyebrow">${isNl ? 'Profiel young professional' : 'Profile young professional'}</div>
-          <div class="cand-name">[FIRST_NAME] [LAST_NAME]</div>
+          <div class="cand-name">[FIRST_NAME] [LAST_NAME] <span class="age">([AGE if known, else omit this span entirely])</span></div>
           <div class="tagline">[ROLE] · [SHORT_DESCRIPTOR — e.g. "Analytisch, gedreven en klantgericht"]</div>
           <div class="review-mark">${reviewLabel}</div>
           <div class="review-body">
@@ -321,7 +343,7 @@ body { background: #E8E0D8; font-family: 'Libre Franklin', sans-serif; padding: 
               <span class="entry-title">[DEGREE] [FIELD]</span>
               <span class="entry-date">[Mon YYYY - Mon YYYY]</span>
             </div>
-            <div class="entry-org">[INSTITUTION] · [CITY/COUNTRY]</div>
+            <div class="entry-org">[INSTITUTION] · [CITY only, no country]</div>
             <div class="entry-body">[1-2 sentence description of the programme focus and/or thesis]</div>
             <div class="entry-body"><em>Courses: [Course 1, Course 2, Course 3, Course 4]</em></div>
             <div class="kw">[HARD SKILL TAGS from courses/thesis]</div>
@@ -357,7 +379,7 @@ EDUCATION RULES (strictly enforced):
   <!-- PAGE 2 -->
   <div class="page">
     <div class="page-header">
-      <div class="logo-text">HARVEST</div>
+      <img src="https://harvest-cv-tool.vercel.app/harvest-logo-white.png" alt="Harvest" style="height:26px;display:block;">
       <div class="header-meta">${fullName} · ${isNl ? 'Skills & Ervaring' : 'Skills & Experience'}</div>
     </div>
     <div class="page-body">
@@ -419,7 +441,7 @@ EDUCATION RULES (strictly enforced):
   <!-- PAGE 3 -->
   <div class="page">
     <div class="page-header">
-      <div class="logo-text">HARVEST</div>
+      <img src="https://harvest-cv-tool.vercel.app/harvest-logo-white.png" alt="Harvest" style="height:26px;display:block;">
       <div class="header-meta">${fullName} · ${isNl ? 'Projecten & Onderzoek' : 'Projects & Research'}</div>
     </div>
     <div class="page-body">
