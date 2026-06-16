@@ -44,6 +44,7 @@ export default function CandidateDetailPage() {
   const [pushSuccess, setPushSuccess] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [photoStatus, setPhotoStatus] = useState<'' | 'removing' | 'uploading'>('')
+  const [photoCacheBust, setPhotoCacheBust] = useState(0)
   const [editingAge, setEditingAge] = useState(false)
   const [ageInput, setAgeInput] = useState<string>('')
   const [savingAge, setSavingAge] = useState(false)
@@ -213,9 +214,17 @@ export default function CandidateDetailPage() {
     setPhotoStatus('removing')
     setError(null)
     try {
-      const bgRemovalModule = await import('@imgly/background-removal')
-      const removeBackground = bgRemovalModule.default as unknown as (input: File) => Promise<Blob>
-      const transparentBlob = await removeBackground(file)
+      // If already a transparent PNG, skip background removal to avoid failures
+      const isPng = file.type === 'image/png'
+      let transparentBlob: Blob
+
+      if (isPng) {
+        transparentBlob = file
+      } else {
+        const bgRemovalModule = await import('@imgly/background-removal')
+        const removeBackground = bgRemovalModule.default as unknown as (input: File) => Promise<Blob>
+        transparentBlob = await removeBackground(file)
+      }
 
       const img = new Image()
       img.src = URL.createObjectURL(transparentBlob)
@@ -267,6 +276,7 @@ export default function CandidateDetailPage() {
       if (dbError) throw dbError
 
       setCandidate(prev => prev ? { ...prev, photo_url: photoUrl } : null)
+      setPhotoCacheBust(n => n + 1)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Foto uploaden mislukt')
     } finally {
@@ -610,7 +620,8 @@ export default function CandidateDetailPage() {
                     <div className="flex flex-col gap-2">
                       {candidate.photo_url && (
                         <img
-                          src={candidate.photo_url}
+                          key={photoCacheBust}
+                          src={`${candidate.photo_url}${candidate.photo_url.includes('?') ? '&' : '?'}_cb=${photoCacheBust}`}
                           alt="Foto"
                           className="w-20 h-20 rounded-full object-cover border-2 border-harvest-brown"
                         />
