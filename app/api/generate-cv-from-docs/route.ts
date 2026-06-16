@@ -527,8 +527,10 @@ export async function POST(request: NextRequest) {
     const city = (formData.get('city') as string | null)?.trim() || ''
     const availability = (formData.get('availability') as string | null)?.trim() || ''
     const language = ((formData.get('language') as string | null) || 'nl') as 'nl' | 'en'
-    const reviewTone = ((formData.get('reviewTone') as string | null) || 'formal') as 'formal' | 'warm'
-    const contactPerson = (formData.get('contactPerson') as string | null) || 'marlie'
+    const reviewTone = ((formData.get('reviewTone') as string | null) || 'warm') as 'formal' | 'warm'
+    const contactPerson = 'beiden'
+    const age = (formData.get('age') as string | null)?.trim() || ''
+    const hobbies = (formData.get('hobbies') as string | null)?.trim() || ''
     const additionalInstructions = (formData.get('additionalInstructions') as string | null)?.trim() || ''
 
     if (!firstName || !lastName || !role) {
@@ -572,17 +574,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // CV file (PDF required)
+    // CV file (PDF, Word or text)
     const cvFile = formData.get('cv') as File | null
     if (!cvFile) {
       return Response.json({ error: 'CV bestand is verplicht.' }, { status: 400 })
     }
-    await addPdfBlock(cvFile, 'CV / Resume')
+    if (cvFile.name.toLowerCase().endsWith('.pdf')) {
+      await addPdfBlock(cvFile, 'CV / Resume')
+    } else {
+      await addTextBlock(cvFile, 'CV / Resume')
+    }
 
-    // Questionnaire (PDF optional)
+    // Questionnaire (PDF, Word or text — optional)
     const questionnaireFile = formData.get('questionnaire') as File | null
     if (questionnaireFile && questionnaireFile.size > 0) {
-      await addPdfBlock(questionnaireFile, 'Vragenlijst Harvest')
+      if (questionnaireFile.name.toLowerCase().endsWith('.pdf')) {
+        await addPdfBlock(questionnaireFile, 'Vragenlijst Harvest')
+      } else {
+        await addTextBlock(questionnaireFile, 'Vragenlijst Harvest')
+      }
     }
 
     // Notes — can be multiple, PDF or Word
@@ -597,11 +607,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Additional documents — PDFs only
-    const additionalEntries = formData.getAll('additional') as File[]
+    // Additional documents — PDF, Word, Markdown or text (max 3)
+    const additionalEntries = (formData.getAll('additional') as File[]).slice(0, 3)
     for (const f of additionalEntries) {
       if (!f || f.size === 0) continue
-      await addPdfBlock(f, `Aanvullend document: ${f.name}`)
+      const name = f.name.toLowerCase()
+      if (name.endsWith('.pdf')) {
+        await addPdfBlock(f, `Aanvullend document: ${f.name}`)
+      } else {
+        await addTextBlock(f, `Aanvullend document: ${f.name}`)
+      }
     }
 
     // Photo — upload to Supabase Storage first, then use URL in the CV
@@ -652,7 +667,11 @@ export async function POST(request: NextRequest) {
       language,
       reviewTone,
       contactPerson,
-      additionalInstructions,
+      additionalInstructions: [
+        additionalInstructions,
+        age ? `Leeftijd kandidaat: ${age} jaar` : '',
+        hobbies ? `Hobby's en interesses (gebruik uitsluitend deze, niet werkgerelateerde onderwerpen): ${hobbies}` : '',
+      ].filter(Boolean).join('\n'),
       hasPhoto: !!photoUrl,
       contactBlocksHTML,
     })
@@ -716,6 +735,7 @@ export async function POST(request: NextRequest) {
         role,
         city: city || null,
         availability: availability || null,
+        age: age ? parseInt(age, 10) : null,
         language,
         review_tone: reviewTone,
         contact_person: contactPerson,

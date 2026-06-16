@@ -6,16 +6,19 @@ import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { createClient } from '@/lib/supabase/client'
-import { Upload, FileText, Image, AlertCircle, Loader2, ArrowLeft, FileUp } from 'lucide-react'
+import { Upload, FileText, Image, AlertCircle, Loader2, ArrowLeft, FileUp, X } from 'lucide-react'
 
 const MAX_FILE_SIZE_MB = 4
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+const DOC_ACCEPT = '.pdf,.doc,.docx,.txt,.md'
+const DOC_HINT = 'PDF, Word, Markdown of tekst'
 
 function FileDrop({
   label,
   icon,
   accept,
   multiple,
+  maxFiles,
   required,
   files,
   onFiles,
@@ -25,6 +28,7 @@ function FileDrop({
   icon: React.ReactNode
   accept: string
   multiple?: boolean
+  maxFiles?: number
   required?: boolean
   files: File[]
   onFiles: (files: File[]) => void
@@ -34,82 +38,114 @@ function FileDrop({
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return
-    onFiles(Array.from(e.target.files))
+    const incoming = Array.from(e.target.files)
+    const merged = maxFiles
+      ? [...files, ...incoming].slice(0, maxFiles)
+      : incoming
+    onFiles(merged)
+    // reset input so same file can be re-added after removal
+    e.target.value = ''
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
     if (!e.dataTransfer.files) return
-    onFiles(Array.from(e.dataTransfer.files))
+    const incoming = Array.from(e.dataTransfer.files)
+    const merged = maxFiles
+      ? [...files, ...incoming].slice(0, maxFiles)
+      : incoming
+    onFiles(merged)
   }
+
+  function removeFile(name: string) {
+    onFiles(files.filter((f) => f.name !== name))
+  }
+
+  const atMax = maxFiles !== undefined && files.length >= maxFiles
 
   return (
     <div>
-      <label className="block text-sm font-medium mb-1.5" style={{ color: '#092B13' }}>
-        {label} {required && <span style={{ color: '#782410' }}>*</span>}
-      </label>
-      <div
-        onClick={() => inputRef.current?.click()}
-        onDrop={handleDrop}
-        onDragOver={(e) => e.preventDefault()}
-        className="cursor-pointer rounded-lg border-2 border-dashed transition-colors px-4 py-4"
-        style={{
-          borderColor: files.length > 0 ? '#092B13' : 'rgba(9,40,18,0.25)',
-          background: files.length > 0 ? 'rgba(9,40,18,0.04)' : '#FDFAF7',
-        }}
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          accept={accept}
-          multiple={multiple}
-          className="hidden"
-          onChange={handleChange}
-        />
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex-shrink-0" style={{ color: files.length > 0 ? '#092B13' : '#8a847a' }}>
-            {icon}
-          </div>
-          <div className="min-w-0 flex-1">
-            {files.length === 0 ? (
-              <div>
-                <p className="text-sm" style={{ color: '#3c3a35' }}>
-                  Sleep bestand hierheen of <span className="underline" style={{ color: '#092B13' }}>klik om te bladeren</span>
+      {label && (
+        <label className="block text-sm font-medium mb-1.5" style={{ color: '#092B13' }}>
+          {label} {required && <span style={{ color: '#782410' }}>*</span>}
+        </label>
+      )}
+
+      {/* File list */}
+      {files.length > 0 && (
+        <div className="mb-2 space-y-1.5">
+          {files.map((f) => (
+            <div
+              key={f.name}
+              className="flex items-center gap-2 px-3 py-1.5 rounded border text-sm"
+              style={{ borderColor: 'rgba(9,40,18,0.15)', background: 'rgba(9,40,18,0.03)' }}
+            >
+              <FileText size={14} style={{ color: '#092B13', flexShrink: 0 }} />
+              <span className="truncate flex-1 font-medium" style={{ color: '#092B13' }}>{f.name}</span>
+              <span className="text-xs flex-shrink-0" style={{ color: '#8a847a' }}>
+                {(f.size / 1024 / 1024).toFixed(1)} MB
+              </span>
+              {f.size > MAX_FILE_SIZE_BYTES && (
+                <span className="text-xs flex-shrink-0" style={{ color: '#782410' }}>te groot!</span>
+              )}
+              <button
+                type="button"
+                onClick={() => removeFile(f.name)}
+                className="flex-shrink-0 hover:opacity-70"
+                style={{ color: '#8a847a' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Drop zone — hide when at max */}
+      {!atMax && (
+        <div
+          onClick={() => inputRef.current?.click()}
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+          className="cursor-pointer rounded-lg border-2 border-dashed transition-colors px-4 py-3"
+          style={{
+            borderColor: files.length > 0 ? '#092B13' : 'rgba(9,40,18,0.25)',
+            background: files.length > 0 ? 'rgba(9,40,18,0.04)' : '#FDFAF7',
+          }}
+        >
+          <input
+            ref={inputRef}
+            type="file"
+            accept={accept}
+            multiple={multiple}
+            className="hidden"
+            onChange={handleChange}
+          />
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0" style={{ color: '#8a847a' }}>{icon}</div>
+            <div>
+              <p className="text-sm" style={{ color: '#3c3a35' }}>
+                Sleep bestand hierheen of{' '}
+                <span className="underline" style={{ color: '#092B13' }}>klik om te bladeren</span>
+              </p>
+              {hint && <p className="text-xs mt-0.5" style={{ color: '#8a847a' }}>{hint}</p>}
+              {maxFiles && files.length > 0 && (
+                <p className="text-xs mt-0.5" style={{ color: '#8a847a' }}>
+                  {files.length}/{maxFiles} bestanden
                 </p>
-                {hint && <p className="text-xs mt-0.5" style={{ color: '#8a847a' }}>{hint}</p>}
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {files.map((f) => (
-                  <div key={f.name} className="flex items-center gap-2">
-                    <span className="text-sm font-medium truncate" style={{ color: '#092B13' }}>{f.name}</span>
-                    <span className="text-xs flex-shrink-0" style={{ color: '#8a847a' }}>
-                      ({(f.size / 1024 / 1024).toFixed(1)} MB)
-                    </span>
-                    {f.size > MAX_FILE_SIZE_BYTES && (
-                      <span className="text-xs" style={{ color: '#782410' }}>— te groot!</span>
-                    )}
-                  </div>
-                ))}
-                <p className="text-xs" style={{ color: '#8a847a' }}>Klik om te wijzigen</p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
+      {atMax && (
+        <p className="text-xs mt-1" style={{ color: '#8a847a' }}>Maximum van {maxFiles} bestanden bereikt.</p>
+      )}
     </div>
   )
 }
 
-function FormField({
-  label,
-  required,
-  children,
-}: {
-  label: string
-  required?: boolean
-  children: React.ReactNode
-}) {
+function FormField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div>
       <label className="block text-sm font-medium mb-1.5" style={{ color: '#092B13' }}>
@@ -120,13 +156,8 @@ function FormField({
   )
 }
 
-const inputClass =
-  'w-full px-3 py-2 rounded border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#092B13]/20'
-const inputStyle = {
-  borderColor: 'rgba(9,40,18,0.2)',
-  background: '#FDFAF7',
-  color: '#1c1f1a',
-}
+const inputClass = 'w-full px-3 py-2 rounded border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#092B13]/20'
+const inputStyle = { borderColor: 'rgba(9,40,18,0.2)', background: '#FDFAF7', color: '#1c1f1a' }
 
 export default function NewFromDocsPage() {
   const router = useRouter()
@@ -144,15 +175,16 @@ export default function NewFromDocsPage() {
   const [role, setRole] = useState('')
   const [city, setCity] = useState('')
   const [availability, setAvailability] = useState('')
+  const [age, setAge] = useState('')
+  const [hobbyInput, setHobbyInput] = useState('')
+  const [hobbies, setHobbies] = useState<string[]>([])
   const [language, setLanguage] = useState<'nl' | 'en'>('nl')
-  const [reviewTone, setReviewTone] = useState<'formal' | 'warm'>('formal')
-  const [contactPerson, setContactPerson] = useState<'marlie' | 'julieta' | 'beiden'>('marlie')
+  const [reviewTone, setReviewTone] = useState<'formal' | 'warm'>('warm')
   const [additionalInstructions, setAdditionalInstructions] = useState('')
 
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Load profile for sidebar
   useState(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -174,9 +206,21 @@ export default function NewFromDocsPage() {
     }
   }
 
+  function addHobby() {
+    const trimmed = hobbyInput.trim()
+    if (trimmed && !hobbies.includes(trimmed)) {
+      setHobbies([...hobbies, trimmed])
+    }
+    setHobbyInput('')
+  }
+
+  function removeHobby(h: string) {
+    setHobbies(hobbies.filter((x) => x !== h))
+  }
+
   function allFilesOk() {
-    const allFiles = [...cvFile, ...questionnaireFile, ...notesFiles, ...additionalFiles, ...photoFile]
-    return allFiles.every((f) => f.size <= MAX_FILE_SIZE_BYTES)
+    return [...cvFile, ...questionnaireFile, ...notesFiles, ...additionalFiles, ...photoFile]
+      .every((f) => f.size <= MAX_FILE_SIZE_BYTES)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -188,11 +232,11 @@ export default function NewFromDocsPage() {
       return
     }
     if (cvFile.length === 0) {
-      setError('Upload minimaal een CV (PDF).')
+      setError('Upload minimaal een CV.')
       return
     }
     if (!allFilesOk()) {
-      setError(`Een of meer bestanden zijn groter dan ${MAX_FILE_SIZE_MB} MB. Verklein de bestanden en probeer opnieuw.`)
+      setError(`Een of meer bestanden zijn groter dan ${MAX_FILE_SIZE_MB} MB.`)
       return
     }
 
@@ -205,9 +249,11 @@ export default function NewFromDocsPage() {
       formData.append('role', role.trim())
       formData.append('city', city.trim())
       formData.append('availability', availability.trim())
+      formData.append('age', age.trim())
+      formData.append('hobbies', hobbies.join(', '))
       formData.append('language', language)
       formData.append('reviewTone', reviewTone)
-      formData.append('contactPerson', contactPerson)
+      formData.append('contactPerson', 'beiden')
       formData.append('additionalInstructions', additionalInstructions.trim())
 
       if (cvFile[0]) formData.append('cv', cvFile[0])
@@ -216,11 +262,7 @@ export default function NewFromDocsPage() {
       additionalFiles.forEach((f) => formData.append('additional', f))
       if (photoFile[0]) formData.append('photo', photoFile[0])
 
-      const res = await fetch('/api/generate-cv-from-docs', {
-        method: 'POST',
-        body: formData,
-      })
-
+      const res = await fetch('/api/generate-cv-from-docs', { method: 'POST', body: formData })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error || `Server fout: ${res.status}`)
@@ -241,17 +283,10 @@ export default function NewFromDocsPage() {
         <Header profile={profile as Parameters<typeof Header>[0]['profile']} />
         <main className="flex-1 p-8">
           <div className="max-w-3xl mx-auto">
-            {/* Back link */}
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-1.5 text-sm mb-5 hover:underline"
-              style={{ color: '#5b5750' }}
-            >
-              <ArrowLeft size={14} />
-              Terug naar dashboard
+            <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm mb-5 hover:underline" style={{ color: '#5b5750' }}>
+              <ArrowLeft size={14} /> Terug naar dashboard
             </Link>
 
-            {/* Page title */}
             <div className="mb-6">
               <p className="text-xs uppercase tracking-widest font-medium mb-1" style={{ color: '#782410' }}>
                 Stap 1 van 2 — Documenten uploaden
@@ -270,42 +305,44 @@ export default function NewFromDocsPage() {
                 <FileDrop
                   label="CV / Resume"
                   icon={<FileText size={18} />}
-                  accept=".pdf"
+                  accept={DOC_ACCEPT}
                   required
                   files={cvFile}
                   onFiles={setCvFile}
-                  hint="PDF — verplicht"
+                  hint={`${DOC_HINT} — verplicht`}
                 />
 
                 <FileDrop
                   label="Vragenlijst Harvest"
                   icon={<FileUp size={18} />}
-                  accept=".pdf"
+                  accept={DOC_ACCEPT}
                   files={questionnaireFile}
                   onFiles={setQuestionnaireFile}
-                  hint="PDF — optioneel maar aanbevolen"
+                  hint={`${DOC_HINT} — optioneel maar aanbevolen`}
                 />
 
                 <FileDrop
                   label="Gespreksnotities"
                   icon={<FileText size={18} />}
-                  accept=".pdf,.doc,.docx,.txt"
+                  accept={DOC_ACCEPT}
                   multiple
                   files={notesFiles}
                   onFiles={setNotesFiles}
-                  hint="PDF, Word of tekst — optioneel"
+                  hint={`${DOC_HINT} — optioneel`}
                 />
 
                 <FileDrop
-                  label="Aanvullende documenten"
+                  label="Aanvullende documenten (max. 3)"
                   icon={<FileUp size={18} />}
-                  accept=".pdf"
+                  accept={DOC_ACCEPT}
                   multiple
+                  maxFiles={3}
                   files={additionalFiles}
                   onFiles={setAdditionalFiles}
-                  hint="PDF — optioneel, bijv. cijferlijsten"
+                  hint={`${DOC_HINT} — bijv. cijferlijsten, certificaten`}
                 />
 
+                {/* Photo */}
                 <div>
                   <label className="block text-sm font-medium mb-1.5" style={{ color: '#092B13' }}>
                     Pasfoto <span style={{ color: '#782410' }}>*</span>
@@ -335,7 +372,7 @@ export default function NewFromDocsPage() {
                 </div>
 
                 <p className="text-xs" style={{ color: '#8a847a' }}>
-                  Maximale bestandsgrootte: {MAX_FILE_SIZE_MB} MB per bestand (Vercel limiet)
+                  Maximale bestandsgrootte: {MAX_FILE_SIZE_MB} MB per bestand
                 </p>
               </div>
 
@@ -345,96 +382,98 @@ export default function NewFromDocsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <FormField label="Voornaam" required>
-                    <input
-                      className={inputClass}
-                      style={inputStyle}
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="Jan"
-                      required
-                    />
+                    <input className={inputClass} style={inputStyle} value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jan" required />
                   </FormField>
                   <FormField label="Achternaam" required>
-                    <input
-                      className={inputClass}
-                      style={inputStyle}
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      placeholder="de Vries"
-                      required
-                    />
+                    <input className={inputClass} style={inputStyle} value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="de Vries" required />
                   </FormField>
                 </div>
 
                 <FormField label="Gewenste rol" required>
-                  <input
-                    className={inputClass}
-                    style={inputStyle}
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    placeholder="Data Scientist, Software Engineer, …"
-                    required
-                  />
+                  <input className={inputClass} style={inputStyle} value={role} onChange={(e) => setRole(e.target.value)} placeholder="Data Scientist, Software Engineer, …" required />
                 </FormField>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <FormField label="Woonplaats">
-                    <input
-                      className={inputClass}
-                      style={inputStyle}
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      placeholder="Amsterdam"
-                    />
+                    <input className={inputClass} style={inputStyle} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Amsterdam" />
                   </FormField>
                   <FormField label="Beschikbaarheid">
+                    <input className={inputClass} style={inputStyle} value={availability} onChange={(e) => setAvailability(e.target.value)} placeholder="Per direct" />
+                  </FormField>
+                  <FormField label="Leeftijd">
                     <input
                       className={inputClass}
                       style={inputStyle}
-                      value={availability}
-                      onChange={(e) => setAvailability(e.target.value)}
-                      placeholder="Per direct, 40 uur/week"
+                      type="number"
+                      min={16}
+                      max={80}
+                      value={age}
+                      onChange={(e) => setAge(e.target.value)}
+                      placeholder="24"
                     />
                   </FormField>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField label="Taal CV">
-                    <select
+                {/* Hobbies */}
+                <FormField label="Hobby's & interesses">
+                  <div className="flex gap-2 mb-2">
+                    <input
                       className={inputClass}
                       style={inputStyle}
-                      value={language}
-                      onChange={(e) => setLanguage(e.target.value as 'nl' | 'en')}
+                      value={hobbyInput}
+                      onChange={(e) => setHobbyInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addHobby() } }}
+                      placeholder="Bijv. Hardlopen, Piano, Wielrennen…"
+                    />
+                    <button
+                      type="button"
+                      onClick={addHobby}
+                      className="px-3 py-2 rounded text-sm font-medium text-white flex-shrink-0"
+                      style={{ background: '#092B13' }}
                     >
+                      Toevoegen
+                    </button>
+                  </div>
+                  {hobbies.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {hobbies.map((h) => (
+                        <span
+                          key={h}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium"
+                          style={{ background: '#092B13', color: '#FFFBF5' }}
+                        >
+                          {h}
+                          <button type="button" onClick={() => removeHobby(h)} className="hover:opacity-70">
+                            <X size={12} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs mt-1.5" style={{ color: '#8a847a' }}>
+                    Druk Enter of klik &apos;Toevoegen&apos; na elke hobby.
+                  </p>
+                </FormField>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField label="Taal CV">
+                    <select className={inputClass} style={inputStyle} value={language} onChange={(e) => setLanguage(e.target.value as 'nl' | 'en')}>
                       <option value="nl">Nederlands</option>
                       <option value="en">English</option>
                     </select>
                   </FormField>
-
                   <FormField label="Review-toon">
-                    <select
-                      className={inputClass}
-                      style={inputStyle}
-                      value={reviewTone}
-                      onChange={(e) => setReviewTone(e.target.value as 'formal' | 'warm')}
-                    >
-                      <option value="formal">Formeel (Beoordeling)</option>
+                    <select className={inputClass} style={inputStyle} value={reviewTone} onChange={(e) => setReviewTone(e.target.value as 'formal' | 'warm')}>
                       <option value="warm">Warm (Over ...)</option>
+                      <option value="formal">Formeel (Beoordeling)</option>
                     </select>
                   </FormField>
+                </div>
 
-                  <FormField label="Contactpersoon">
-                    <select
-                      className={inputClass}
-                      style={inputStyle}
-                      value={contactPerson}
-                      onChange={(e) => setContactPerson(e.target.value as 'marlie' | 'julieta' | 'beiden')}
-                    >
-                      <option value="marlie">Marlie</option>
-                      <option value="julieta">Julieta</option>
-                      <option value="beiden">Beiden</option>
-                    </select>
-                  </FormField>
+                {/* Contactpersoon — vaste waarde, geen keuze */}
+                <div className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm" style={{ background: 'rgba(9,40,18,0.04)', border: '1px solid rgba(9,40,18,0.1)' }}>
+                  <span className="font-medium" style={{ color: '#092B13' }}>Contactpersoon:</span>
+                  <span style={{ color: '#3c3a35' }}>Marlie Ekdom &amp; Julieta van Hierden</span>
                 </div>
 
                 <FormField label="Aanvullende instructies">
@@ -443,24 +482,19 @@ export default function NewFromDocsPage() {
                     style={{ ...inputStyle, resize: 'vertical', minHeight: 80 }}
                     value={additionalInstructions}
                     onChange={(e) => setAdditionalInstructions(e.target.value)}
-                    placeholder="Optioneel: specifieke wensen voor de recruiter of Claude, zoals nadruk op bepaalde projecten of vaardigheden."
+                    placeholder="Optioneel: specifieke wensen voor Claude, zoals nadruk op bepaalde projecten of vaardigheden."
                     rows={3}
                   />
                 </FormField>
               </div>
 
-              {/* Error */}
               {error && (
-                <div
-                  className="flex items-start gap-3 px-4 py-3 rounded-lg text-sm"
-                  style={{ background: '#FEF2F0', color: '#782410', border: '1px solid rgba(120,36,16,0.2)' }}
-                >
+                <div className="flex items-start gap-3 px-4 py-3 rounded-lg text-sm" style={{ background: '#FEF2F0', color: '#782410', border: '1px solid rgba(120,36,16,0.2)' }}>
                   <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
                   <span>{error}</span>
                 </div>
               )}
 
-              {/* Submit */}
               <div className="flex justify-end">
                 <button
                   type="submit"
@@ -469,10 +503,7 @@ export default function NewFromDocsPage() {
                   style={{ background: generating ? '#5b5750' : '#092B13' }}
                 >
                   {generating ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      Claude leest de documenten en genereert het CV…
-                    </>
+                    <><Loader2 size={16} className="animate-spin" />Claude leest de documenten en genereert het CV…</>
                   ) : (
                     'Genereer CV'
                   )}
