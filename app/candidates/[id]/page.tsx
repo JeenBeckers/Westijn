@@ -621,7 +621,7 @@ export default function CandidateDetailPage() {
                       {candidate.photo_url && (
                         <img
                           key={photoCacheBust}
-                          src={`${candidate.photo_url}${candidate.photo_url.includes('?') ? '&' : '?'}_cb=${photoCacheBust}`}
+                          src={candidate.photo_url}
                           alt="Foto"
                           className="w-20 h-20 rounded-full object-cover border-2 border-harvest-brown"
                         />

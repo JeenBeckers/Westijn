@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { anthropic } from '@/lib/anthropic'
 import { compressImage } from '@/lib/compress-image'
-import { HARVEST_LOGO_DATA_URI } from '@/lib/logo-base64'
 
 const CONTACT_PERSONS: Record<string, { name: string; email: string; phone: string }[]> = {
   marlie: [{ name: 'Marlie Ekdom', email: 'marlie@harvesttalent.nl', phone: '+31 6 38596717' }],
@@ -274,7 +273,7 @@ body { background: #E8E0D8; font-family: 'Libre Franklin', sans-serif; padding: 
   <!-- PAGE 1 -->
   <div class="page">
     <div class="page-header">
-      <img src="${HARVEST_LOGO_DATA_URI}" alt="Harvest" style="height:26px;display:block;">
+      <img src="https://westijn.vercel.app/harvest-logo-white.png" alt="Harvest" style="height:26px;display:block;">
       <div class="header-meta">Curriculum vitae · Confidential</div>
     </div>
     <div class="page-body">
@@ -380,7 +379,7 @@ EDUCATION RULES (strictly enforced):
   <!-- PAGE 2 -->
   <div class="page">
     <div class="page-header">
-      <img src="${HARVEST_LOGO_DATA_URI}" alt="Harvest" style="height:26px;display:block;">
+      <img src="https://westijn.vercel.app/harvest-logo-white.png" alt="Harvest" style="height:26px;display:block;">
       <div class="header-meta">${fullName} · ${isNl ? 'Skills & Ervaring' : 'Skills & Experience'}</div>
     </div>
     <div class="page-body">
@@ -442,7 +441,7 @@ EDUCATION RULES (strictly enforced):
   <!-- PAGE 3 -->
   <div class="page">
     <div class="page-header">
-      <img src="${HARVEST_LOGO_DATA_URI}" alt="Harvest" style="height:26px;display:block;">
+      <img src="https://westijn.vercel.app/harvest-logo-white.png" alt="Harvest" style="height:26px;display:block;">
       <div class="header-meta">${fullName} · ${isNl ? 'Projecten & Onderzoek' : 'Projects & Research'}</div>
     </div>
     <div class="page-body">
