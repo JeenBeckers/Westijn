@@ -64,6 +64,13 @@ export default function CandidateDetailPage() {
   const [editText, setEditText] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
 
+  // Extra docs upload
+  const [extraDocs, setExtraDocs] = useState<File[]>([])
+  const [updatingWithDocs, setUpdatingWithDocs] = useState(false)
+
+  // Inline CV editing
+  const [savingInline, setSavingInline] = useState(false)
+
   // Claude quality check modal
   const [claudeCheckOpen, setClaudeCheckOpen] = useState(false)
   const [claudeChecking, setClaudeChecking] = useState(false)
@@ -433,8 +440,11 @@ export default function CandidateDetailPage() {
   }
 
   async function handleAcceptImprovement() {
-    if (!candidate?.cv_html || !improvedHtml) return
-    const updatedHtml = patchSectionHtml(candidate.cv_html, editSection, improvedHtml)
+    if (!candidate || !improvedHtml) return
+    // Re-fetch to avoid stale snapshot issues on second round
+    const { data: fresh } = await supabase.from('candidates').select('cv_html').eq('id', candidate.id).single()
+    const baseHtml = fresh?.cv_html || candidate.cv_html || ''
+    const updatedHtml = patchSectionHtml(baseHtml, editSection, improvedHtml)
     const { error: dbError } = await supabase
       .from('candidates')
       .update({ cv_html: updatedHtml, updated_at: new Date().toISOString() })
@@ -448,9 +458,12 @@ export default function CandidateDetailPage() {
   }
 
   async function handleSaveManualEdit() {
-    if (!candidate?.cv_html || !editText.trim()) return
+    if (!candidate || !editText.trim()) return
     setSavingEdit(true)
-    const updatedHtml = patchSectionWithText(candidate.cv_html, editSection, editText)
+    // Re-fetch to avoid stale snapshot issues on second round
+    const { data: fresh } = await supabase.from('candidates').select('cv_html').eq('id', candidate.id).single()
+    const baseHtml = fresh?.cv_html || candidate.cv_html || ''
+    const updatedHtml = patchSectionWithText(baseHtml, editSection, editText)
     const { error: dbError } = await supabase
       .from('candidates')
       .update({ cv_html: updatedHtml, updated_at: new Date().toISOString() })
@@ -460,6 +473,54 @@ export default function CandidateDetailPage() {
     setCandidate(prev => prev ? { ...prev, cv_html: updatedHtml } : null)
     setSavedAt(new Date())
     await trackEditor()
+  }
+
+  async function handleUpdateWithDocs() {
+    if (!candidate || extraDocs.length === 0) return
+    setUpdatingWithDocs(true)
+    setError(null)
+    try {
+      const formData = new FormData()
+      formData.append('candidateId', candidate.id)
+      for (const file of extraDocs) {
+        formData.append('files', file)
+      }
+      const res = await fetch('/api/update-cv-with-docs', { method: 'POST', body: formData })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Verwerken mislukt')
+      }
+      const { html } = await res.json()
+      setCandidate(prev => prev ? { ...prev, cv_html: html } : null)
+      setSavedAt(new Date())
+      setExtraDocs([])
+      await trackEditor()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verwerken mislukt')
+    } finally {
+      setUpdatingWithDocs(false)
+    }
+  }
+
+  async function handleSaveCVInline(updatedHtml: string) {
+    if (!candidate) return
+    const { error: dbError } = await supabase
+      .from('candidates')
+      .update({ cv_html: updatedHtml, updated_at: new Date().toISOString() })
+      .eq('id', candidate.id)
+    if (dbError) { setError(dbError.message); return }
+    setCandidate(prev => prev ? { ...prev, cv_html: updatedHtml } : null)
+    setSavedAt(new Date())
+    await trackEditor()
+  }
+
+  async function handleSaveCVInlineWithState(updatedHtml: string) {
+    setSavingInline(true)
+    try {
+      await handleSaveCVInline(updatedHtml)
+    } finally {
+      setSavingInline(false)
+    }
   }
 
   // --- Claude quality check + push ---
@@ -731,6 +792,51 @@ export default function CandidateDetailPage() {
                       {candidate.cv_html ? 'CV opnieuw genereren' : 'CV genereren'}
                     </Button>
 
+                    <div>
+                      <label className="cursor-pointer">
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.txt,.md"
+                          multiple
+                          className="hidden"
+                          onChange={e => {
+                            const files = Array.from(e.target.files || [])
+                            setExtraDocs(prev => [...prev, ...files])
+                            e.target.value = ''
+                          }}
+                        />
+                        <span className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium border rounded border-harvest-muted text-harvest-muted hover:border-harvest-green hover:text-harvest-green transition-colors w-full justify-center cursor-pointer">
+                          Documenten toevoegen
+                        </span>
+                      </label>
+                      {extraDocs.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {extraDocs.map((f, i) => (
+                            <span key={i} className="flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-harvest-bg border border-harvest-muted text-harvest-muted">
+                              {f.name}
+                              <button
+                                onClick={() => setExtraDocs(prev => prev.filter((_, j) => j !== i))}
+                                className="hover:text-harvest-dark"
+                              >✕</button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {extraDocs.length > 0 && candidate.cv_html && (
+                        <button
+                          onClick={handleUpdateWithDocs}
+                          disabled={updatingWithDocs}
+                          className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors disabled:opacity-60"
+                          style={{ background: '#162518', color: '#E8DFD0', border: 'none', cursor: updatingWithDocs ? 'not-allowed' : 'pointer' }}
+                        >
+                          {updatingWithDocs && (
+                            <span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                          )}
+                          {updatingWithDocs ? 'Verwerken…' : 'Verwerk documenten in CV'}
+                        </button>
+                      )}
+                    </div>
+
                     {candidate.cv_html && (
                       <button
                         onClick={() => openEditPanel('claude')}
@@ -813,6 +919,8 @@ export default function CandidateDetailPage() {
                   <CVPreview
                     html={candidate.cv_html}
                     candidateName={`${candidate.first_name} ${candidate.last_name}`}
+                    onSave={handleSaveCVInlineWithState}
+                    saving={savingInline}
                   />
                 ) : (
                   <Card className="flex items-center justify-center py-20">
