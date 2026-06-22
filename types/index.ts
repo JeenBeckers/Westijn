@@ -1,3 +1,11 @@
+export interface CvVersion {
+  id: string
+  candidate_id: string
+  name: string
+  cv_html: string
+  created_at: string
+}
+
 export interface Profile {
   id: string
   full_name: string

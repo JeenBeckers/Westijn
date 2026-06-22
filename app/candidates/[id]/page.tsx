@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Wand2, Send, ArrowLeft, User, MapPin, Clock, Globe, ArrowUpRight, Pencil, X } from 'lucide-react'
-import type { Candidate, Profile, IntakeResponse } from '@/types'
+import { BookmarkPlus, Trash2, Clock3 } from 'lucide-react'
+import type { Candidate, Profile, IntakeResponse, CvVersion } from '@/types'
 
 const SECTIONS = [
   { value: 'samenvatting', label: 'Samenvatting / Beoordeling' },
@@ -71,6 +72,13 @@ export default function CandidateDetailPage() {
   // Inline CV editing
   const [savingInline, setSavingInline] = useState(false)
 
+  // CV Versioning
+  const [cvVersions, setCvVersions] = useState<CvVersion[]>([])
+  const [savingVersion, setSavingVersion] = useState(false)
+  const [versionNameModalOpen, setVersionNameModalOpen] = useState(false)
+  const [versionName, setVersionName] = useState('')
+  const [previewVersion, setPreviewVersion] = useState<CvVersion | null>(null)
+
   // Claude quality check modal
   const [claudeCheckOpen, setClaudeCheckOpen] = useState(false)
   const [claudeChecking, setClaudeChecking] = useState(false)
@@ -109,6 +117,14 @@ export default function CandidateDetailPage() {
           .single()
         setIntakeResponse(response)
       }
+
+      // Load saved CV versions (ignore error if table doesn't exist yet)
+      const { data: versions } = await supabase
+        .from('cv_versions')
+        .select('*')
+        .eq('candidate_id', params.id)
+        .order('created_at', { ascending: false })
+      if (versions) setCvVersions(versions)
 
       setLoading(false)
     }
@@ -523,6 +539,40 @@ export default function CandidateDetailPage() {
     }
   }
 
+  // --- CV Versioning ---
+
+  async function handleSaveVersion() {
+    if (!candidate?.cv_html || !versionName.trim()) return
+    setSavingVersion(true)
+    const { data, error: dbError } = await supabase
+      .from('cv_versions')
+      .insert({ candidate_id: candidate.id, name: versionName.trim(), cv_html: candidate.cv_html })
+      .select()
+      .single()
+    setSavingVersion(false)
+    if (dbError) { setError('Versie opslaan mislukt: ' + dbError.message); return }
+    if (data) setCvVersions(prev => [data, ...prev])
+    setVersionNameModalOpen(false)
+    setVersionName('')
+  }
+
+  async function handleDeleteVersion(versionId: string) {
+    const { error: dbError } = await supabase.from('cv_versions').delete().eq('id', versionId)
+    if (!dbError) setCvVersions(prev => prev.filter(v => v.id !== versionId))
+  }
+
+  async function handleRestoreVersion(version: CvVersion) {
+    if (!candidate) return
+    const { error: dbError } = await supabase
+      .from('candidates')
+      .update({ cv_html: version.cv_html, updated_at: new Date().toISOString() })
+      .eq('id', candidate.id)
+    if (dbError) { setError(dbError.message); return }
+    setCandidate(prev => prev ? { ...prev, cv_html: version.cv_html } : null)
+    setPreviewVersion(null)
+    setSavedAt(new Date())
+  }
+
   // --- Claude quality check + push ---
 
   async function handleClaudeCheck() {
@@ -838,14 +888,24 @@ export default function CandidateDetailPage() {
                     </div>
 
                     {candidate.cv_html && (
-                      <button
-                        onClick={() => openEditPanel('claude')}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded text-sm font-medium border transition-colors"
-                        style={{ borderColor: '#162518', color: '#162518', background: 'transparent' }}
-                      >
-                        <Pencil size={15} />
-                        CV bewerken
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => openEditPanel('claude')}
+                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded text-sm font-medium border transition-colors"
+                          style={{ borderColor: '#162518', color: '#162518', background: 'transparent' }}
+                        >
+                          <Pencil size={15} />
+                          CV bewerken
+                        </button>
+                        <button
+                          onClick={() => { setVersionName(''); setVersionNameModalOpen(true) }}
+                          className="flex items-center justify-center gap-1 px-3 py-2 rounded text-sm font-medium border transition-colors"
+                          style={{ borderColor: '#162518', color: '#162518', background: 'transparent' }}
+                          title="Versie opslaan"
+                        >
+                          <BookmarkPlus size={15} />
+                        </button>
+                      </div>
                     )}
 
                     <Button
@@ -914,14 +974,82 @@ export default function CandidateDetailPage() {
               </div>
 
               {/* Right panel - CV Preview */}
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-2 space-y-4">
                 {candidate.cv_html ? (
-                  <CVPreview
-                    html={candidate.cv_html}
-                    candidateName={`${candidate.first_name} ${candidate.last_name}`}
-                    onSave={handleSaveCVInlineWithState}
-                    saving={savingInline}
-                  />
+                  <>
+                    {/* Version preview banner */}
+                    {previewVersion && (
+                      <div className="flex items-center justify-between px-4 py-2.5 rounded-lg text-sm" style={{ background: '#162518', color: '#E8DFD0' }}>
+                        <span>
+                          <Clock3 size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
+                          Versie bekijken: <strong>{previewVersion.name}</strong>
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleRestoreVersion(previewVersion)}
+                            className="text-xs px-3 py-1 rounded font-semibold"
+                            style={{ background: '#d94f4f', color: '#fff', border: 'none', cursor: 'pointer' }}
+                          >
+                            Terugzetten
+                          </button>
+                          <button
+                            onClick={() => setPreviewVersion(null)}
+                            className="text-xs px-3 py-1 rounded font-semibold"
+                            style={{ background: 'rgba(255,255,255,0.15)', color: '#E8DFD0', border: 'none', cursor: 'pointer' }}
+                          >
+                            Sluiten
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <CVPreview
+                      html={previewVersion ? previewVersion.cv_html : candidate.cv_html}
+                      candidateName={`${candidate.first_name} ${candidate.last_name}`}
+                      onSave={previewVersion ? undefined : handleSaveCVInlineWithState}
+                      saving={savingInline}
+                    />
+
+                    {/* Saved versions list */}
+                    {cvVersions.length > 0 && (
+                      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #e0d8d0' }}>
+                        <div className="px-4 py-2.5 flex items-center justify-between" style={{ background: '#F2EBE5' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5b5750' }}>
+                            Opgeslagen versies
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#9c9690' }}>{cvVersions.length} versie{cvVersions.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="divide-y" style={{ borderColor: '#e0d8d0' }}>
+                          {cvVersions.map(v => (
+                            <div key={v.id} className="flex items-center justify-between px-4 py-3">
+                              <div>
+                                <p className="text-sm font-medium text-harvest-dark">{v.name}</p>
+                                <p className="text-xs text-harvest-muted">
+                                  {new Date(v.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => setPreviewVersion(previewVersion?.id === v.id ? null : v)}
+                                  className="text-xs px-2.5 py-1 rounded border font-medium transition-colors"
+                                  style={{ borderColor: previewVersion?.id === v.id ? '#162518' : '#c0b8b0', color: previewVersion?.id === v.id ? '#162518' : '#5b5750', background: 'transparent' }}
+                                >
+                                  {previewVersion?.id === v.id ? 'Actief' : 'Bekijken'}
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteVersion(v.id)}
+                                  className="p-1 rounded transition-colors hover:text-harvest-error text-harvest-muted"
+                                  title="Verwijderen"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <Card className="flex items-center justify-center py-20">
                     <div className="text-center">
@@ -1162,6 +1290,49 @@ export default function CandidateDetailPage() {
                 style={{ background: '#162518', color: '#E8DFD0', border: 'none', cursor: claudeChecking ? 'not-allowed' : 'pointer', opacity: claudeChecking ? 0.6 : 1 }}
               >
                 Toch doorzetten
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Version name modal */}
+      {versionNameModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="w-full max-w-sm rounded-xl overflow-hidden shadow-2xl" style={{ background: '#FFFBF5' }}>
+            <div className="px-6 py-4" style={{ background: '#162518' }}>
+              <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#E8DFD0', margin: 0 }}>
+                Versie opslaan
+              </h2>
+            </div>
+            <div className="px-6 py-5 space-y-3">
+              <p className="text-sm text-harvest-muted">Geef deze versie een naam, bijvoorbeeld de klant of de taal.</p>
+              <input
+                type="text"
+                value={versionName}
+                onChange={e => setVersionName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleSaveVersion(); if (e.key === 'Escape') setVersionNameModalOpen(false) }}
+                placeholder="Bijv. Shell — Engels, Accenture v2, NL-versie…"
+                autoFocus
+                className="w-full px-3 py-2 text-sm rounded border focus:outline-none focus:ring-2 focus:ring-harvest-green"
+                style={{ background: '#F2EBE5', borderColor: '#e0d8d0', color: '#162518' }}
+              />
+            </div>
+            <div className="flex gap-3 px-6 py-4" style={{ borderTop: '1px solid #e0d8d0', background: '#F2EBE5' }}>
+              <button
+                onClick={() => setVersionNameModalOpen(false)}
+                className="flex-1 py-2 rounded text-sm font-semibold"
+                style={{ background: 'transparent', color: '#162518', border: '1px solid #c0b8b0', cursor: 'pointer' }}
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={handleSaveVersion}
+                disabled={savingVersion || !versionName.trim()}
+                className="flex-1 py-2 rounded text-sm font-semibold"
+                style={{ background: '#162518', color: '#E8DFD0', border: 'none', cursor: savingVersion || !versionName.trim() ? 'not-allowed' : 'pointer', opacity: savingVersion || !versionName.trim() ? 0.6 : 1 }}
+              >
+                {savingVersion ? '…' : 'Opslaan'}
               </button>
             </div>
           </div>

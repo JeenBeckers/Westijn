@@ -1,7 +1,7 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
-import { Download, Printer, Code, Pencil } from 'lucide-react'
+import { useRef, useState, useEffect, useCallback } from 'react'
+import { Printer, Code, Pencil, Check, X } from 'lucide-react'
 import Button from '@/components/ui/Button'
 
 interface CVPreviewProps {
@@ -11,40 +11,59 @@ interface CVPreviewProps {
   saving?: boolean
 }
 
-function extractStylesAndBody(html: string): { styles: string; body: string } {
-  const styleMatches = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)]
-  const styles = styleMatches.map(m => `<style>${m[1]}</style>`).join('\n')
-  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
-  const body = bodyMatch ? bodyMatch[1] : html
-  return { styles, body }
-}
-
 export function CVPreview({ html, candidateName, onSave, saving }: CVPreviewProps) {
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const editRef = useRef<HTMLDivElement>(null)
+  const viewIframeRef = useRef<HTMLIFrameElement>(null)
+  const editIframeRef = useRef<HTMLIFrameElement>(null)
   const [editMode, setEditMode] = useState(false)
+  const htmlRef = useRef(html)
 
-  const { styles, body } = extractStylesAndBody(html)
-
+  // Keep htmlRef in sync so handleSaveEdit always sees the latest html
   useEffect(() => {
-    if (editMode && editRef.current) {
-      editRef.current.innerHTML = body
+    htmlRef.current = html
+  }, [html])
+
+  // When entering edit mode, write current html into the edit iframe and enable designMode
+  useEffect(() => {
+    if (!editMode || !editIframeRef.current) return
+
+    const iframe = editIframeRef.current
+
+    function initDesignMode() {
+      const doc = iframe.contentDocument
+      if (!doc) return
+      doc.open()
+      doc.write(htmlRef.current)
+      doc.close()
+      // Allow browser to paint, then enable design mode
+      setTimeout(() => {
+        try {
+          doc.designMode = 'on'
+        } catch {
+          // ignore cross-origin errors (shouldn't happen with same-origin)
+        }
+      }, 80)
+    }
+
+    if (iframe.contentDocument?.readyState === 'complete') {
+      initDesignMode()
+    } else {
+      iframe.addEventListener('load', initDesignMode, { once: true })
     }
   }, [editMode])
 
   async function handleSaveEdit() {
-    if (!editRef.current || !onSave) return
-    const editedBody = editRef.current.innerHTML
-    const updatedHtml = html.replace(/<body[^>]*>[\s\S]*?<\/body>/i, `<body>${editedBody}</body>`)
+    if (!editIframeRef.current?.contentDocument || !onSave) return
+    const doc = editIframeRef.current.contentDocument
+    try {
+      doc.designMode = 'off'
+    } catch { /* ignore */ }
+    const updatedHtml = '<!DOCTYPE html>' + doc.documentElement.outerHTML
     await onSave(updatedHtml)
     setEditMode(false)
   }
 
   function handleCancelEdit() {
     setEditMode(false)
-    if (editRef.current) {
-      editRef.current.innerHTML = ''
-    }
   }
 
   function handleDownloadHtml() {
@@ -58,27 +77,19 @@ export function CVPreview({ html, candidateName, onSave, saving }: CVPreviewProp
   }
 
   function handlePrint() {
-    if (!html) return;
-    const printWindow = window.open('', '_blank', 'width=900,height=700');
-    if (!printWindow) return;
-
-    // Ensure body has no extra padding/margin
-    const printHtml = html.replace(
-      '<body>',
-      '<body style="margin:0;padding:0;">'
-    );
-
-    printWindow.document.open();
-    printWindow.document.write(printHtml);
-    printWindow.document.close();
-
-    // Wait for fonts and images to load before printing
+    if (!html) return
+    const printWindow = window.open('', '_blank', 'width=900,height=700')
+    if (!printWindow) return
+    const printHtml = html.replace('<body>', '<body style="margin:0;padding:0;">')
+    printWindow.document.open()
+    printWindow.document.write(printHtml)
+    printWindow.document.close()
     printWindow.onload = () => {
       setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-      }, 800);
-    };
+        printWindow.focus()
+        printWindow.print()
+      }, 800)
+    }
   }
 
   return (
@@ -101,36 +112,57 @@ export function CVPreview({ html, candidateName, onSave, saving }: CVPreviewProp
         {onSave && editMode && (
           <>
             <Button size="sm" onClick={handleSaveEdit} loading={saving}>
+              <Check size={14} className="mr-1.5" />
               Opslaan
             </Button>
             <Button variant="secondary" size="sm" onClick={handleCancelEdit}>
+              <X size={14} className="mr-1.5" />
               Annuleren
             </Button>
           </>
         )}
       </div>
 
-      {editMode ? (
-        <div className="border border-harvest-bg rounded overflow-hidden" style={{ background: '#fff' }}>
-          {/* Inject extracted CSS */}
-          <div dangerouslySetInnerHTML={{ __html: styles }} />
-          {/* Editable CV body */}
+      {/* View iframe — always mounted, hidden in edit mode */}
+      <div
+        className="border border-harvest-bg rounded overflow-hidden bg-gray-100"
+        style={{ display: editMode ? 'none' : undefined }}
+      >
+        <iframe
+          ref={viewIframeRef}
+          srcDoc={html}
+          className="w-full"
+          style={{ height: '1200px' }}
+          sandbox="allow-same-origin allow-popups-to-escape-sandbox"
+          title={`CV van ${candidateName}`}
+        />
+      </div>
+
+      {/* Edit iframe — only shown in edit mode, no sandbox so designMode works */}
+      {editMode && (
+        <div className="border-2 border-harvest-green rounded overflow-hidden" style={{ position: 'relative' }}>
           <div
-            ref={editRef}
-            contentEditable
-            suppressContentEditableWarning
-            style={{ outline: 'none', minHeight: '1200px' }}
-          />
-        </div>
-      ) : (
-        <div className="border border-harvest-bg rounded overflow-hidden bg-gray-100">
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              padding: '6px 12px',
+              background: '#162518',
+              zIndex: 10,
+              fontSize: '11px',
+              fontWeight: 600,
+              color: '#E8DFD0',
+              letterSpacing: '0.08em',
+            }}
+          >
+            ✏️ Bewerkingsmodus — klik op tekst om te bewerken
+          </div>
           <iframe
-            ref={iframeRef}
-            srcDoc={html}
+            ref={editIframeRef}
             className="w-full"
-            style={{ height: '1200px' }}
-            sandbox="allow-same-origin allow-popups-to-escape-sandbox"
-            title={`CV van ${candidateName}`}
+            style={{ height: '1200px', paddingTop: '30px' }}
+            title="CV bewerken"
           />
         </div>
       )}
