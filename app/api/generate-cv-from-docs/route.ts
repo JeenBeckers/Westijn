@@ -723,6 +723,12 @@ export async function POST(request: NextRequest) {
     // Post-process: remove em-dashes from text content
     html = html.replace(/—/g, '-')
 
+    // Post-process: enforce degree format (BSc/MSc)
+    html = html.replace(/Bachelor(?:'s)?(?:\s+of\s+\w+)?/g, 'BSc')
+    html = html.replace(/Bacheloropleiding/gi, 'BSc')
+    html = html.replace(/Master(?:'s)?(?:\s+of\s+\w+)?/g, 'MSc')
+    html = html.replace(/Masteropleiding/gi, 'MSc')
+
     html = html.trim()
 
     // Save candidate to database

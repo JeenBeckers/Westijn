@@ -28,6 +28,7 @@ REGELS:
 - Schrijf in het Nederlands (tenzij de inhoud al in het Engels was)
 - Gebruik GEEN em-dashes (—) in de tekst
 - Gebruik in keyword-tags (.kw .tag) ALLEEN technische vaardigheden en tools, geen soft skills
+- GRAAD FORMAT REGEL (strikt — geen uitzonderingen): schrijf ALTIJD "BSc" (nooit "Bachelor", "Bachelor of Science", "Bachelor's", of een andere vorm) en ALTIJD "MSc" (nooit "Master", "Master of Science", "Master's", "MA", of een andere vorm)
 - Geef ALLEEN de verbeterde HTML-fragment terug, geen uitleg, geen markdown, geen code fences`,
       messages: [
         {
@@ -45,7 +46,14 @@ Geef ALLEEN de verbeterde HTML terug, exact dezelfde structuur maar met betere t
       ],
     })
 
-    const improvedHtml = message.content[0].type === 'text' ? message.content[0].text.trim() : sectionHtml
+    let improvedHtml = message.content[0].type === 'text' ? message.content[0].text.trim() : sectionHtml
+
+    // Post-process: enforce degree format and remove em-dashes
+    improvedHtml = improvedHtml.replace(/—/g, '-')
+    improvedHtml = improvedHtml.replace(/Bachelor(?:'s)?(?:\s+of\s+\w+)?/g, 'BSc')
+    improvedHtml = improvedHtml.replace(/Bacheloropleiding/gi, 'BSc')
+    improvedHtml = improvedHtml.replace(/Master(?:'s)?(?:\s+of\s+\w+)?/g, 'MSc')
+    improvedHtml = improvedHtml.replace(/Masteropleiding/gi, 'MSc')
 
     return Response.json({ improvedHtml })
   } catch (error) {

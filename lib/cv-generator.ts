@@ -83,6 +83,11 @@ HOBBIES RULE (strictly enforced):
 - NEVER include work-related interests or professional/technical topics such as: energietransitie, verduurzaming, AI, digitalisering, innovatie, technology trends, sustainability, or similar.
 - If the candidate's data includes such topics under hobbies/interests, replace them with personal leisure activities or omit them.
 
+DEGREE FORMAT RULE (strictly enforced — no exceptions):
+- ALWAYS write "BSc" — NEVER write "Bachelor", "Bachelor of Science", "Bacheloropleiding", "Bachelor's", or any other form.
+- ALWAYS write "MSc" — NEVER write "Master", "Master of Science", "Masteropleiding", "Master's", "MA", or any other form.
+- This applies everywhere: degree titles, review text, sidebar, education section, and any mention in the text.
+
 TYPOGRAPHY RULE (strictly enforced):
 - NEVER use em-dashes (—) or en-dashes (–) anywhere in the CV text content.
 - Replace any em-dash or en-dash with a comma, colon, hyphen (-), or rewrite the sentence.
@@ -510,6 +515,12 @@ Follow these instructions while respecting all page limits and layout rules abov
   // Post-process: remove em-dashes from text content (not inside HTML tags)
   html = html.replace(/—/g, '-')
 
+  // Force degree format: Bachelor → BSc, Master → MSc (outside HTML tags)
+  html = html.replace(/Bachelor(?:'s)?(?:\s+of\s+\w+)?/g, 'BSc')
+  html = html.replace(/Bacheloropleiding/gi, 'BSc')
+  html = html.replace(/Master(?:'s)?(?:\s+of\s+\w+)?/g, 'MSc')
+  html = html.replace(/Masteropleiding/gi, 'MSc')
+
   // Force correct logo URL regardless of what Claude output
   html = html.replace(
     /<img([^>]*)src="[^"]*harvest-logo[^"]*"([^>]*)>/g,
@@ -564,7 +575,7 @@ export async function refineCV(
         content: userContent,
       },
     ],
-    system: 'You are a professional CV designer for Harvest Talent. Modify the provided HTML CV as instructed. Return ONLY the complete HTML document starting with <!DOCTYPE html>. No markdown fences, no explanation.\n\nTYPOGRAPHY RULE (strictly enforced): NEVER use em-dashes (—) anywhere in the CV text content. Replace any em-dash with a comma, colon, hyphen (-), or rewrite the sentence. This applies to ALL text: review, education, skills, work experience, projects, tagline. The only exception is the review-mark label (e.g. "— Review") which is a decorative element, not body text.\n\nKEYWORD TAGS RULE (strictly enforced): The red keyword tags (.kw .tag elements) under work experience entries and project entries must contain ONLY technical skills and tools. Soft skills belong ONLY in the .pill.soft elements on the Skills page — never in .kw .tag elements. Keep the tag list short: max 6 tags per entry.',
+    system: 'You are a professional CV designer for Harvest Talent. Modify the provided HTML CV as instructed. Return ONLY the complete HTML document starting with <!DOCTYPE html>. No markdown fences, no explanation.\n\nDEGREE FORMAT RULE (strictly enforced — no exceptions): ALWAYS write "BSc" — NEVER "Bachelor", "Bachelor of Science", or any other form. ALWAYS write "MSc" — NEVER "Master", "Master of Science", or any other form. This applies everywhere in the document.\n\nTYPOGRAPHY RULE (strictly enforced): NEVER use em-dashes (—) anywhere in the CV text content. Replace any em-dash with a comma, colon, hyphen (-), or rewrite the sentence. This applies to ALL text: review, education, skills, work experience, projects, tagline. The only exception is the review-mark label (e.g. "— Review") which is a decorative element, not body text.\n\nKEYWORD TAGS RULE (strictly enforced): The red keyword tags (.kw .tag elements) under work experience entries and project entries must contain ONLY technical skills and tools. Soft skills belong ONLY in the .pill.soft elements on the Skills page — never in .kw .tag elements. Keep the tag list short: max 6 tags per entry.',
   })
 
   const content = message.content[0]
@@ -581,6 +592,12 @@ export async function refineCV(
 
   // Post-process: remove em-dashes from text content (not inside HTML tags)
   html = html.replace(/—/g, '-')
+
+  // Force degree format: Bachelor → BSc, Master → MSc
+  html = html.replace(/Bachelor(?:'s)?(?:\s+of\s+\w+)?/g, 'BSc')
+  html = html.replace(/Bacheloropleiding/gi, 'BSc')
+  html = html.replace(/Master(?:'s)?(?:\s+of\s+\w+)?/g, 'MSc')
+  html = html.replace(/Masteropleiding/gi, 'MSc')
 
   // Force correct logo URL
   html = html.replace(
