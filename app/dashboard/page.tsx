@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
-import { PlusCircle, FileUp } from 'lucide-react'
-import type { Profile, Candidate, CandidateEditor } from '@/types'
+import { PlusCircle, FileUp, ChevronDown } from 'lucide-react'
+import type { Profile, Candidate, CandidateEditor, CvVersion } from '@/types'
 
 type CandidateInvite = {
   id: string
@@ -341,6 +341,92 @@ function SortArrow({ col, active, dir }: { col: SortColumn; active: SortColumn; 
   return <span className="ml-1">{dir === 'asc' ? '↑' : '↓'}</span>
 }
 
+function VersionsDropdown({ candidateId }: { candidateId: string }) {
+  const supabase = createClient()
+  const [open, setOpen] = useState(false)
+  const [versions, setVersions] = useState<CvVersion[] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
+  async function toggle() {
+    if (open) { setOpen(false); return }
+    setOpen(true)
+    if (versions !== null) return
+    setLoading(true)
+    const { data } = await supabase
+      .from('cv_versions')
+      .select('id, name, created_at')
+      .eq('candidate_id', candidateId)
+      .order('created_at', { ascending: false })
+    setVersions((data as CvVersion[]) ?? [])
+    setLoading(false)
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={toggle}
+        className="inline-flex items-center gap-1 border border-gray-300 rounded px-3 py-1 text-xs hover:bg-gray-100 transition-colors text-gray-700"
+      >
+        Versies <ChevronDown size={11} className={open ? 'rotate-180 transition-transform' : 'transition-transform'} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-20 mt-1 min-w-[200px] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+          {loading ? (
+            <p className="px-3 py-2 text-xs text-gray-400 italic">Laden…</p>
+          ) : versions && versions.length > 0 ? (
+            <>
+              <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Opgeslagen versies</p>
+              {versions.map((v) => (
+                <Link
+                  key={v.id}
+                  href={`/candidates/${candidateId}?version=${v.id}`}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-between px-3 py-2 text-xs hover:bg-gray-50 text-gray-700 border-t border-gray-100 first:border-t-0"
+                >
+                  <span className="font-medium truncate max-w-[130px]">{v.name}</span>
+                  <span className="text-gray-400 ml-2 shrink-0">{new Date(v.created_at).toLocaleDateString('nl-NL')}</span>
+                </Link>
+              ))}
+              <div className="border-t border-gray-100">
+                <Link
+                  href={`/candidates/${candidateId}`}
+                  onClick={() => setOpen(false)}
+                  className="block px-3 py-2 text-xs text-[#092B13] font-medium hover:bg-gray-50"
+                >
+                  Huidig CV →
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="px-3 py-2 text-xs text-gray-400 italic">Geen versies opgeslagen</p>
+              <div className="border-t border-gray-100">
+                <Link
+                  href={`/candidates/${candidateId}`}
+                  onClick={() => setOpen(false)}
+                  className="block px-3 py-2 text-xs text-[#092B13] font-medium hover:bg-gray-50"
+                >
+                  Bekijk CV →
+                </Link>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CandidatesTable({
   candidates,
   onDelete,
@@ -450,6 +536,7 @@ function CandidatesTable({
                       >
                         Bekijk CV
                       </Link>
+                      <VersionsDropdown candidateId={c.id} />
                       <button
                         onClick={() => onDelete(c)}
                         className="border border-gray-300 rounded px-3 py-1 text-xs hover:border-[#9C2A12] hover:text-[#9C2A12] transition-colors text-gray-500"

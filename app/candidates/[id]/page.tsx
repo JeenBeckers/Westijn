@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
@@ -27,6 +27,7 @@ const SECTIONS = [
 export default function CandidateDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   const [candidate, setCandidate] = useState<Candidate | null>(null)
@@ -124,7 +125,15 @@ export default function CandidateDetailPage() {
         .select('*')
         .eq('candidate_id', params.id)
         .order('created_at', { ascending: false })
-      if (versions) setCvVersions(versions)
+      if (versions) {
+        setCvVersions(versions)
+        // If a version id is passed via URL (?version=<id>), activate it immediately
+        const versionIdParam = searchParams?.get('version')
+        if (versionIdParam) {
+          const found = versions.find((v: CvVersion) => v.id === versionIdParam)
+          if (found) setPreviewVersion(found)
+        }
+      }
 
       setLoading(false)
     }
