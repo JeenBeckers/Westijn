@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
             </div>
             <div class="footer">
               <strong style="color:#B8865F; letter-spacing:2px;">HARVEST TALENT</strong><br>
-              Marlie Ekdom &bull; marlie@harvesttalent.nl<br><br>
+              Marlie Ekdom &bull; marlie.ekdom@harvest.nl<br><br>
               &copy; ${new Date().getFullYear()} Harvest Talent Recruitment
             </div>
           </div>

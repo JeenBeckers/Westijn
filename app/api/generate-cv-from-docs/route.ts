@@ -4,11 +4,11 @@ import { anthropic } from '@/lib/anthropic'
 import { compressImage } from '@/lib/compress-image'
 
 const CONTACT_PERSONS: Record<string, { name: string; email: string; phone: string }[]> = {
-  marlie: [{ name: 'Marlie Ekdom', email: 'marlie@harvesttalent.nl', phone: '+31 6 38596717' }],
-  julieta: [{ name: 'Julieta van Hierden', email: 'julieta@harvesttalent.nl', phone: '+31 6 51759566' }],
+  marlie: [{ name: 'Marlie Ekdom', email: 'marlie.ekdom@harvest.nl', phone: '+31 6 38596717' }],
+  julieta: [{ name: 'Julieta van Hierden', email: 'julieta.van.hierden@harvest.nl', phone: '+31 6 51759566' }],
   beiden: [
-    { name: 'Marlie Ekdom', email: 'marlie@harvesttalent.nl', phone: '+31 6 38596717' },
-    { name: 'Julieta van Hierden', email: 'julieta@harvesttalent.nl', phone: '+31 6 51759566' },
+    { name: 'Marlie Ekdom', email: 'marlie.ekdom@harvest.nl', phone: '+31 6 38596717' },
+    { name: 'Julieta van Hierden', email: 'julieta.van.hierden@harvest.nl', phone: '+31 6 51759566' },
   ],
 }
 
