@@ -26,6 +26,7 @@ REGELS:
 - Behoud exact dezelfde HTML-structuur en CSS-klassen — wijzig geen tags, klassen, of layout
 - Verbeter alleen de tekstinhoud: maak het scherper, professioneler en overtuigender
 - Schrijf in het Nederlands (tenzij de inhoud al in het Engels was)
+- Verzin NOOIT nieuwe werkervaring, projecten of rollen — verbeter alleen wat er al staat, op basis van de bestaande inhoud
 - Gebruik GEEN em-dashes (—) in de tekst
 - Gebruik in keyword-tags (.kw .tag) ALLEEN technische vaardigheden en tools, geen soft skills
 - GRAAD FORMAT REGEL (strikt — geen uitzonderingen): schrijf ALTIJD "BSc" (nooit "Bachelor", "Bachelor of Science", "Bachelor's", of een andere vorm) en ALTIJD "MSc" (nooit "Master", "Master of Science", "Master's", "MA", of een andere vorm)

@@ -72,6 +72,12 @@ The "Over [naam]" / review section must follow this exact style, based on real H
 - NEVER use hollow phrases like "passie voor", "hands-on", "gedreven professional", "track record".
 - Write 2-4 natural paragraphs. No bullet points in the review section.
 
+NO FABRICATION RULE (strictly enforced — zero tolerance):
+- NEVER invent, fabricate, or assume any work experience, projects, or roles.
+- Every work experience entry and every project entry MUST come verbatim from the source data provided.
+- If information is incomplete or ambiguous, use only what is explicitly stated. Do NOT fill gaps with plausible-sounding details.
+- This rule overrides all other instructions: if no work experience or projects are present in the source data, leave those sections empty — do not add examples.
+
 LOCATION RULE (strictly enforced):
 - Use ONLY the city name. Examples: "Rotterdam", "Amsterdam", "Eindhoven", "Delft".
 - NEVER add country, region, or any geographic qualifier like "Nederland", "the Netherlands", "NL".

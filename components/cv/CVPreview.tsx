@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { Printer, Code, Pencil, Check, X } from 'lucide-react'
+import { Printer, Code, Pencil, Check, X, Undo2, Redo2 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 
 interface CVPreviewProps {
@@ -16,11 +16,36 @@ export function CVPreview({ html, candidateName, onSave, saving }: CVPreviewProp
   const editIframeRef = useRef<HTMLIFrameElement>(null)
   const [editMode, setEditMode] = useState(false)
   const htmlRef = useRef(html)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
 
   // Keep htmlRef in sync so handleSaveEdit always sees the latest html
   useEffect(() => {
     htmlRef.current = html
   }, [html])
+
+  function getEditHtml(): string | null {
+    const doc = editIframeRef.current?.contentDocument
+    if (!doc) return null
+    return '<!DOCTYPE html>' + doc.documentElement.outerHTML
+  }
+
+  const triggerAutoSave = useCallback(() => {
+    if (!onSave) return
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(async () => {
+      const updatedHtml = getEditHtml()
+      if (!updatedHtml) return
+      setAutoSaveStatus('saving')
+      try {
+        await onSave(updatedHtml)
+        setAutoSaveStatus('saved')
+        setTimeout(() => setAutoSaveStatus('idle'), 2500)
+      } catch {
+        setAutoSaveStatus('idle')
+      }
+    }, 4000)
+  }, [onSave])
 
   // When entering edit mode, write current html into the edit iframe and enable designMode
   useEffect(() => {
@@ -34,12 +59,13 @@ export function CVPreview({ html, candidateName, onSave, saving }: CVPreviewProp
       doc.open()
       doc.write(htmlRef.current)
       doc.close()
-      // Allow browser to paint, then enable design mode
       setTimeout(() => {
         try {
           doc.designMode = 'on'
+          // Listen for any input to trigger auto-save
+          doc.addEventListener('input', triggerAutoSave)
         } catch {
-          // ignore cross-origin errors (shouldn't happen with same-origin)
+          // ignore cross-origin errors
         }
       }, 80)
     }
@@ -49,10 +75,15 @@ export function CVPreview({ html, candidateName, onSave, saving }: CVPreviewProp
     } else {
       iframe.addEventListener('load', initDesignMode, { once: true })
     }
-  }, [editMode])
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    }
+  }, [editMode, triggerAutoSave])
 
   async function handleSaveEdit() {
     if (!editIframeRef.current?.contentDocument || !onSave) return
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     const doc = editIframeRef.current.contentDocument
     try {
       doc.designMode = 'off'
@@ -60,10 +91,25 @@ export function CVPreview({ html, candidateName, onSave, saving }: CVPreviewProp
     const updatedHtml = '<!DOCTYPE html>' + doc.documentElement.outerHTML
     await onSave(updatedHtml)
     setEditMode(false)
+    setAutoSaveStatus('idle')
   }
 
   function handleCancelEdit() {
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     setEditMode(false)
+    setAutoSaveStatus('idle')
+  }
+
+  function handleUndo() {
+    const doc = editIframeRef.current?.contentDocument
+    if (!doc) return
+    doc.execCommand('undo')
+  }
+
+  function handleRedo() {
+    const doc = editIframeRef.current?.contentDocument
+    if (!doc) return
+    doc.execCommand('redo')
   }
 
   function handleDownloadHtml() {
@@ -111,6 +157,12 @@ export function CVPreview({ html, candidateName, onSave, saving }: CVPreviewProp
         )}
         {onSave && editMode && (
           <>
+            <Button variant="secondary" size="sm" onClick={handleUndo} title="Ongedaan maken (Ctrl+Z)">
+              <Undo2 size={14} />
+            </Button>
+            <Button variant="secondary" size="sm" onClick={handleRedo} title="Opnieuw (Ctrl+Y)">
+              <Redo2 size={14} />
+            </Button>
             <Button size="sm" onClick={handleSaveEdit} loading={saving}>
               <Check size={14} className="mr-1.5" />
               Opslaan
@@ -119,6 +171,12 @@ export function CVPreview({ html, candidateName, onSave, saving }: CVPreviewProp
               <X size={14} className="mr-1.5" />
               Annuleren
             </Button>
+            {autoSaveStatus === 'saving' && (
+              <span className="text-xs text-gray-400 italic">Opslaan…</span>
+            )}
+            {autoSaveStatus === 'saved' && (
+              <span className="text-xs text-green-600 font-medium">✓ Automatisch opgeslagen</span>
+            )}
           </>
         )}
       </div>
@@ -156,7 +214,7 @@ export function CVPreview({ html, candidateName, onSave, saving }: CVPreviewProp
               letterSpacing: '0.08em',
             }}
           >
-            ✏️ Bewerkingsmodus — klik op tekst om te bewerken
+            ✏️ Bewerkingsmodus — klik op tekst om te bewerken &nbsp;·&nbsp; Ctrl+Z om ongedaan te maken
           </div>
           <iframe
             ref={editIframeRef}
