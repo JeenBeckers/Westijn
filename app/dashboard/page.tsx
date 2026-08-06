@@ -429,10 +429,16 @@ function VersionsDropdown({ candidateId }: { candidateId: string }) {
 
 function CandidatesTable({
   candidates,
+  mode,
   onDelete,
+  onArchive,
+  onUnarchive,
 }: {
   candidates: CandidateWithProfile[]
+  mode: 'actief' | 'archief'
   onDelete: (c: CandidateWithProfile) => void
+  onArchive?: (c: CandidateWithProfile) => void
+  onUnarchive?: (c: CandidateWithProfile) => void
 }) {
   const [search, setSearch] = useState('')
   const [sortCol, setSortCol] = useState<SortColumn>('created_at')
@@ -497,7 +503,6 @@ function CandidatesTable({
                 Naam <SortArrow col="name" active={sortCol} dir={sortDir} />
               </th>
               <th className={thClass}>Rol</th>
-              <th className={thClass}>Status</th>
               <th className={thSortClass} onClick={() => handleSort('created_by')}>
                 Aangemaakt door <SortArrow col="created_by" active={sortCol} dir={sortDir} />
               </th>
@@ -510,7 +515,7 @@ function CandidatesTable({
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-gray-400 italic">
+                <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-400 italic">
                   {search ? 'Geen kandidaten gevonden voor deze zoekopdracht' : 'Geen kandidaten'}
                 </td>
               </tr>
@@ -521,9 +526,6 @@ function CandidatesTable({
                     {c.first_name} {c.last_name}
                   </td>
                   <td className="px-4 py-3 text-gray-500">{c.role || '—'}</td>
-                  <td className="px-4 py-3">
-                    <CandidateStatusBadge status={c.status} />
-                  </td>
                   <td className="px-4 py-3 text-gray-500">{c.profiles?.full_name || 'Onbekend'}</td>
                   <td className="px-4 py-3 text-gray-500">
                     {new Date(c.created_at).toLocaleDateString('nl-NL')}
@@ -536,12 +538,30 @@ function CandidatesTable({
                       >
                         Bekijk CV
                       </Link>
-                      <VersionsDropdown candidateId={c.id} />
+                      {mode === 'actief' && (
+                        <>
+                          <VersionsDropdown candidateId={c.id} />
+                          <button
+                            onClick={() => onArchive?.(c)}
+                            className="border border-gray-300 rounded px-3 py-1 text-xs hover:border-[#5b5750] hover:text-[#5b5750] transition-colors text-gray-500"
+                          >
+                            Archiveren
+                          </button>
+                        </>
+                      )}
+                      {mode === 'archief' && (
+                        <button
+                          onClick={() => onUnarchive?.(c)}
+                          className="border border-gray-300 rounded px-3 py-1 text-xs hover:border-[#092B13] hover:text-[#092B13] transition-colors text-gray-500"
+                        >
+                          Terugzetten
+                        </button>
+                      )}
                       <button
                         onClick={() => onDelete(c)}
                         className="border border-gray-300 rounded px-3 py-1 text-xs hover:border-[#9C2A12] hover:text-[#9C2A12] transition-colors text-gray-500"
                       >
-                        Verwijder
+                        Verwijderen
                       </button>
                     </div>
                   </td>
@@ -557,6 +577,7 @@ function CandidatesTable({
 
 export default function DashboardPage() {
   const router = useRouter()
+  const supabase = createClient()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [candidates, setCandidates] = useState<CandidateWithProfile[]>([])
   const [invites, setInvites] = useState<CandidateInvite[]>([])
@@ -564,9 +585,10 @@ export default function DashboardPage() {
   const [toDelete, setToDelete] = useState<CandidateWithProfile | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [showNewInviteModal, setShowNewInviteModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<'actief' | 'archief'>('actief')
 
   const fetchData = useCallback(async () => {
-    const supabase = createClient()
+    const supabase = createClient()  // eslint-disable-line react-hooks/exhaustive-deps
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       router.push('/login')
@@ -609,8 +631,19 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleArchive(c: CandidateWithProfile) {
+    await supabase.from('candidates').update({ status: 'archief' }).eq('id', c.id)
+    setCandidates((prev) => prev.map((x) => x.id === c.id ? { ...x, status: 'archief' } : x))
+  }
+
+  async function handleUnarchive(c: CandidateWithProfile) {
+    await supabase.from('candidates').update({ status: 'in_behandeling' }).eq('id', c.id)
+    setCandidates((prev) => prev.map((x) => x.id === c.id ? { ...x, status: 'in_behandeling' } : x))
+  }
+
   const review = candidates.filter((c) => c.status === 'review')
-  const nonReview = candidates.filter((c) => c.status !== 'review')
+  const actief = candidates.filter((c) => c.status === 'in_behandeling')
+  const archief = candidates.filter((c) => c.status === 'archief')
 
   return (
     <div className="flex min-h-screen">
@@ -637,7 +670,7 @@ export default function DashboardPage() {
               <div>
                 <h1 className="font-serif text-2xl text-harvest-dark">Kandidaten</h1>
                 <p className="text-harvest-muted text-sm mt-1">
-                  {loading ? '…' : `${candidates.length} kandidaten totaal`}
+                  {loading ? '…' : `${actief.length} actief · ${archief.length} gearchiveerd`}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -691,15 +724,58 @@ export default function DashboardPage() {
               )}
             </section>
 
-            {/* Unified candidates table */}
+            {/* Tabbed candidates table */}
             <section>
-              <h2 className="font-serif font-semibold text-lg mb-4" style={{ color: '#092B13' }}>
-                Alle kandidaten
-              </h2>
+              {/* Tab header */}
+              <div className="flex items-center gap-0 mb-4 border-b border-gray-200">
+                {(['actief', 'archief'] as const).map((tab) => {
+                  const count = tab === 'actief' ? actief.length : archief.length
+                  const isActive = activeTab === tab
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className="relative px-5 py-2.5 text-sm font-semibold transition-colors"
+                      style={{
+                        color: isActive ? '#092B13' : '#9c9690',
+                        borderBottom: isActive ? '2px solid #092B13' : '2px solid transparent',
+                        marginBottom: '-1px',
+                        background: 'transparent',
+                      }}
+                    >
+                      {tab === 'actief' ? 'Actief' : 'Archief'}
+                      {count > 0 && (
+                        <span
+                          className="ml-2 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                          style={{
+                            background: isActive ? '#092B13' : '#e0d8d0',
+                            color: isActive ? '#FFFBF5' : '#5b5750',
+                          }}
+                        >
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
               {loading ? (
                 <p className="text-sm text-harvest-muted italic">Laden…</p>
+              ) : activeTab === 'actief' ? (
+                <CandidatesTable
+                  candidates={actief}
+                  mode="actief"
+                  onDelete={setToDelete}
+                  onArchive={handleArchive}
+                />
               ) : (
-                <CandidatesTable candidates={nonReview} onDelete={setToDelete} />
+                <CandidatesTable
+                  candidates={archief}
+                  mode="archief"
+                  onDelete={setToDelete}
+                  onUnarchive={handleUnarchive}
+                />
               )}
             </section>
 

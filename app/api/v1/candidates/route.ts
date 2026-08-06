@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const { data: candidates, error } = await supabase
       .from('candidates')
       .select('*, profiles(full_name)')
+      .neq('status', 'archief')
       .order('created_at', { ascending: false })
 
     if (error) throw error

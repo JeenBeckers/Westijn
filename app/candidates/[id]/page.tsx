@@ -9,7 +9,7 @@ import { CVPreview } from '@/components/cv/CVPreview'
 import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
-import { Wand2, Send, ArrowLeft, User, MapPin, Clock, Globe, ArrowUpRight, Pencil, X } from 'lucide-react'
+import { Wand2, Send, ArrowLeft, User, MapPin, Clock, Globe, ArrowUpRight, Languages, X } from 'lucide-react'
 import { BookmarkPlus, Trash2, Clock3 } from 'lucide-react'
 import type { Candidate, Profile, IntakeResponse, CvVersion } from '@/types'
 
@@ -72,6 +72,9 @@ export default function CandidateDetailPage() {
 
   // Inline CV editing
   const [savingInline, setSavingInline] = useState(false)
+
+  // Translate CV
+  const [translating, setTranslating] = useState(false)
 
   // CV Versioning
   const [cvVersions, setCvVersions] = useState<CvVersion[]>([])
@@ -140,10 +143,23 @@ export default function CandidateDetailPage() {
     load()
   }, [params.id])
 
+  async function autoSaveCurrentVersion() {
+    if (!candidate?.cv_html) return
+    const name = `Auto-opgeslagen — ${new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+    const { data } = await supabase
+      .from('cv_versions')
+      .insert({ candidate_id: candidate.id, name, cv_html: candidate.cv_html })
+      .select()
+      .single()
+    if (data) setCvVersions(prev => [data, ...prev])
+  }
+
   async function handleGenerateCV() {
     if (!candidate) return
     setGenerating(true)
     setError(null)
+    // Auto-save current version before overwriting
+    if (candidate.cv_html) await autoSaveCurrentVersion()
     try {
       const res = await fetch('/api/generate-cv', {
         method: 'POST',
@@ -500,10 +516,37 @@ export default function CandidateDetailPage() {
     await trackEditor()
   }
 
+  async function handleTranslateCV() {
+    if (!candidate?.cv_html) return
+    setTranslating(true)
+    setError(null)
+    await autoSaveCurrentVersion()
+    try {
+      const res = await fetch('/api/translate-cv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidateId: candidate.id }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Vertalen mislukt')
+      }
+      const { html } = await res.json()
+      setCandidate(prev => prev ? { ...prev, cv_html: html, language: 'en' } : null)
+      setSavedAt(new Date())
+      await trackEditor()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Vertalen mislukt')
+    } finally {
+      setTranslating(false)
+    }
+  }
+
   async function handleUpdateWithDocs() {
     if (!candidate || extraDocs.length === 0) return
     setUpdatingWithDocs(true)
     setError(null)
+    await autoSaveCurrentVersion()
     try {
       const formData = new FormData()
       formData.append('candidateId', candidate.id)
@@ -899,12 +942,15 @@ export default function CandidateDetailPage() {
                     {candidate.cv_html && (
                       <div className="flex gap-2">
                         <button
-                          onClick={() => openEditPanel('claude')}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded text-sm font-medium border transition-colors"
+                          onClick={handleTranslateCV}
+                          disabled={translating}
+                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded text-sm font-medium border transition-colors disabled:opacity-60"
                           style={{ borderColor: '#162518', color: '#162518', background: 'transparent' }}
                         >
-                          <Pencil size={15} />
-                          CV bewerken
+                          {translating
+                            ? <span className="inline-block w-3 h-3 border border-harvest-green border-t-transparent rounded-full animate-spin" />
+                            : <Languages size={15} />}
+                          {translating ? 'Vertalen…' : 'Vertalen naar Engels'}
                         </button>
                         <button
                           onClick={() => { setVersionName(''); setVersionNameModalOpen(true) }}

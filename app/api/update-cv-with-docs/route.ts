@@ -106,10 +106,11 @@ NEW DOCUMENTS contain updated/additional information about the candidate. Extrac
 RULES:
 - Keep the EXACT same HTML structure, CSS classes, and layout
 - Only update sections where new information is relevant
-- Do NOT invent information not present in the documents
+- NO FABRICATION (zero tolerance): NEVER invent, fabricate, or assume any work experience, projects, or roles — every entry must come verbatim from the source documents
 - Keep all existing information unless the documents explicitly supersede it
 - Return the COMPLETE updated HTML document (all 3 pages)
 - NEVER use em-dashes (—) — use comma or hyphen instead
+- DEGREE FORMAT: always write "BSc" (never Bachelor/Bachelor of Science) and "MSc" (never Master/Master of Science)
 - Logo img src must remain: https://westijn.vercel.app/harvest-logo-white.png
 
 Output ONLY the complete HTML document, starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no explanation.`
