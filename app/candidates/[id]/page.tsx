@@ -9,7 +9,7 @@ import { CVPreview } from '@/components/cv/CVPreview'
 import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
-import { Wand2, Send, ArrowLeft, User, MapPin, Clock, Globe, ArrowUpRight, Languages, X } from 'lucide-react'
+import { Wand2, Send, ArrowLeft, User, MapPin, Clock, Globe, ArrowUpRight, Languages, X, Mail, Eye, ChevronDown } from 'lucide-react'
 import { BookmarkPlus, Trash2, Clock3 } from 'lucide-react'
 import type { Candidate, Profile, IntakeResponse, CvVersion } from '@/types'
 
@@ -75,6 +75,21 @@ export default function CandidateDetailPage() {
 
   // Translate CV
   const [translating, setTranslating] = useState(false)
+
+  // Share / Aanbieding
+  const [shareModalOpen, setShareModalOpen] = useState(false)
+  const [shareStep, setShareStep] = useState<'form' | 'preview' | 'done'>('form')
+  const [shareSubmitting, setShareSubmitting] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
+  const [apolloSearch, setApolloSearch] = useState('')
+  const [apolloResults, setApolloResults] = useState<{ id: string; name: string; email: string; organization_name: string }[]>([])
+  const [apolloSearching, setApolloSearching] = useState(false)
+  const [selectedContact, setSelectedContact] = useState<{ id: string; name: string; email: string; organization_name: string } | null>(null)
+  const [harvestContact, setHarvestContact] = useState<'jeen' | 'marlie' | 'julieta'>('julieta')
+  const [shareContextNote, setShareContextNote] = useState('')
+  const [shareResult, setShareResult] = useState<{ shareUrl: string; coverLetter: string; subject: string } | null>(null)
+  const [cvShares, setCvShares] = useState<{ id: string; apollo_contact_name: string; apollo_company: string; created_at: string; view_count: number; last_viewed_at: string | null; token: string }[]>([])
+  const [sharesLoaded, setSharesLoaded] = useState(false)
 
   // CV Versioning
   const [cvVersions, setCvVersions] = useState<CvVersion[]>([])
@@ -542,6 +557,82 @@ export default function CandidateDetailPage() {
     }
   }
 
+  async function searchApolloContacts(query: string) {
+    if (!query.trim() || query.length < 2) { setApolloResults([]); return }
+    setApolloSearching(true)
+    try {
+      const res = await fetch('/api/apollo-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setApolloResults(data.contacts || [])
+      }
+    } catch { /* ignore */ } finally {
+      setApolloSearching(false)
+    }
+  }
+
+  async function handleCreateShare() {
+    if (!candidate || !selectedContact) return
+    setShareSubmitting(true)
+    setShareError(null)
+    try {
+      const res = await fetch('/api/share-cv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateId: candidate.id,
+          apolloContactId: selectedContact.id,
+          apolloContactName: selectedContact.name,
+          apolloContactEmail: selectedContact.email,
+          apolloCompany: selectedContact.organization_name,
+          harvestContact,
+          contextNote: shareContextNote || undefined,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Klaarzetten mislukt')
+      }
+      const data = await res.json()
+      setShareResult({ shareUrl: data.shareUrl, coverLetter: data.coverLetter, subject: data.subject })
+      setShareStep('done')
+      // Reload shares list
+      loadCvShares()
+    } catch (err) {
+      setShareError(err instanceof Error ? err.message : 'Klaarzetten mislukt')
+    } finally {
+      setShareSubmitting(false)
+    }
+  }
+
+  async function loadCvShares() {
+    if (!candidate) return
+    try {
+      const res = await fetch(`/api/share-cv?candidateId=${candidate.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setCvShares(data.shares || [])
+      }
+    } catch { /* ignore */ }
+    setSharesLoaded(true)
+  }
+
+  function openShareModal() {
+    setShareModalOpen(true)
+    setShareStep('form')
+    setShareError(null)
+    setApolloSearch('')
+    setApolloResults([])
+    setSelectedContact(null)
+    setShareContextNote('')
+    setShareResult(null)
+    if (!sharesLoaded) loadCvShares()
+  }
+
   async function handleUpdateWithDocs() {
     if (!candidate || extraDocs.length === 0) return
     setUpdatingWithDocs(true)
@@ -963,6 +1054,17 @@ export default function CandidateDetailPage() {
                       </div>
                     )}
 
+                    {candidate.cv_html && (
+                      <button
+                        onClick={openShareModal}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors"
+                        style={{ background: '#1a2b4b', color: '#fff', border: 'none', cursor: 'pointer' }}
+                      >
+                        <Mail size={15} />
+                        Aanbieding klaarzetten
+                      </button>
+                    )}
+
                     <Button
                       onClick={handleClaudeCheck}
                       loading={pushing}
@@ -1125,6 +1227,221 @@ export default function CandidateDetailPage() {
           </div>
         </main>
       </div>
+
+      {/* Share modal */}
+      {shareModalOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-50" onClick={() => setShareModalOpen(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="relative w-full max-w-lg rounded-xl shadow-2xl overflow-hidden" style={{ background: '#FFFBF5' }}>
+              {/* Modal header */}
+              <div className="flex items-center justify-between px-6 py-4" style={{ background: '#1a2b4b' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#fff' }}>
+                  Aanbieding klaarzetten
+                </span>
+                <button onClick={() => setShareModalOpen(false)} style={{ color: 'rgba(255,255,255,0.7)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-5">
+                {shareStep === 'form' && (
+                  <>
+                    {/* Apollo contact search */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5b5750', marginBottom: '6px' }}>
+                        Contactpersoon (klant)
+                      </label>
+                      {selectedContact ? (
+                        <div className="flex items-center justify-between px-3 py-2.5 rounded-lg" style={{ background: '#E8F0E8', border: '1px solid #092B13' }}>
+                          <div>
+                            <p className="text-sm font-semibold text-harvest-dark">{selectedContact.name}</p>
+                            <p className="text-xs text-harvest-muted">{selectedContact.organization_name} · {selectedContact.email}</p>
+                          </div>
+                          <button onClick={() => setSelectedContact(null)} style={{ color: '#5b5750', background: 'none', border: 'none', cursor: 'pointer' }}>
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={apolloSearch}
+                            onChange={e => { setApolloSearch(e.target.value); searchApolloContacts(e.target.value) }}
+                            placeholder="Zoek naam of bedrijf in Apollo…"
+                            className="w-full px-3 py-2 text-sm rounded border focus:outline-none focus:ring-2 focus:ring-harvest-green"
+                            style={{ background: '#F2EBE5', borderColor: '#e0d8d0', color: '#162518' }}
+                          />
+                          {apolloSearching && (
+                            <div className="absolute right-3 top-2.5">
+                              <span className="inline-block w-4 h-4 border-2 border-harvest-green border-t-transparent rounded-full animate-spin" />
+                            </div>
+                          )}
+                          {apolloResults.length > 0 && (
+                            <div className="absolute z-10 w-full mt-1 rounded-lg shadow-lg overflow-hidden" style={{ background: '#FFFBF5', border: '1px solid #e0d8d0' }}>
+                              {apolloResults.map(c => (
+                                <button
+                                  key={c.id}
+                                  onClick={() => { setSelectedContact(c); setApolloResults([]) }}
+                                  className="w-full text-left px-4 py-3 hover:bg-harvest-bg transition-colors border-b last:border-b-0"
+                                  style={{ borderColor: '#f0e8e0' }}
+                                >
+                                  <p className="text-sm font-medium text-harvest-dark">{c.name}</p>
+                                  <p className="text-xs text-harvest-muted">{c.organization_name} · {c.email}</p>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Harvest contact selector */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5b5750', marginBottom: '6px' }}>
+                        Harvest contactpersoon
+                      </label>
+                      <div className="flex gap-2">
+                        {(['jeen', 'marlie', 'julieta'] as const).map(p => (
+                          <button
+                            key={p}
+                            onClick={() => setHarvestContact(p)}
+                            className="flex-1 py-2 rounded text-sm font-medium capitalize transition-colors"
+                            style={{
+                              background: harvestContact === p ? '#1a2b4b' : '#F2EBE5',
+                              color: harvestContact === p ? '#fff' : '#5b5750',
+                              border: `1px solid ${harvestContact === p ? '#1a2b4b' : '#e0d8d0'}`,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {p.charAt(0).toUpperCase() + p.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Context note */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5b5750', marginBottom: '6px' }}>
+                        Context voor de brief <span style={{ fontWeight: 400, color: '#9c9690' }}>(optioneel)</span>
+                      </label>
+                      <textarea
+                        value={shareContextNote}
+                        onChange={e => setShareContextNote(e.target.value)}
+                        placeholder="Bijv. relevant voor de open DevOps rol, eerder gesproken met contact op evenement…"
+                        rows={3}
+                        className="w-full px-3 py-2 text-sm rounded border focus:outline-none focus:ring-2 focus:ring-harvest-green resize-none"
+                        style={{ background: '#F2EBE5', borderColor: '#e0d8d0', color: '#162518' }}
+                      />
+                    </div>
+
+                    {shareError && <p className="text-sm" style={{ color: '#d94f4f' }}>{shareError}</p>}
+
+                    <button
+                      onClick={handleCreateShare}
+                      disabled={shareSubmitting || !selectedContact}
+                      className="w-full py-2.5 rounded text-sm font-semibold flex items-center justify-center gap-2 transition-opacity"
+                      style={{ background: '#1a2b4b', color: '#fff', border: 'none', cursor: shareSubmitting || !selectedContact ? 'not-allowed' : 'pointer', opacity: shareSubmitting || !selectedContact ? 0.6 : 1 }}
+                    >
+                      {shareSubmitting && <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+                      {shareSubmitting ? 'Brief genereren en link aanmaken…' : 'Aanbieding klaarzetten'}
+                    </button>
+                  </>
+                )}
+
+                {shareStep === 'done' && shareResult && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: '#E8F0E8', border: '1px solid #092B13' }}>
+                      <span style={{ color: '#092B13', fontSize: 20 }}>✓</span>
+                      <p className="text-sm font-semibold" style={{ color: '#092B13' }}>Link aangemaakt en brief gegenereerd</p>
+                    </div>
+
+                    <div>
+                      <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5b5750', marginBottom: '6px' }}>CV-link (beveiligd)</p>
+                      <div className="flex gap-2">
+                        <input
+                          readOnly
+                          value={shareResult.shareUrl}
+                          className="flex-1 px-3 py-2 text-xs rounded border"
+                          style={{ background: '#F2EBE5', borderColor: '#e0d8d0', color: '#162518' }}
+                        />
+                        <button
+                          onClick={() => navigator.clipboard.writeText(shareResult.shareUrl)}
+                          className="px-3 py-2 rounded text-xs font-medium"
+                          style={{ background: '#162518', color: '#E8DFD0', border: 'none', cursor: 'pointer' }}
+                        >
+                          Kopieer
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5b5750', marginBottom: '6px' }}>Gegenereerde aanbiedingsbrief</p>
+                      <div className="p-4 rounded-lg text-sm whitespace-pre-wrap" style={{ background: '#F2EBE5', color: '#162518', lineHeight: 1.7, maxHeight: '220px', overflowY: 'auto' }}>
+                        {shareResult.coverLetter}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => navigator.clipboard.writeText(shareResult.coverLetter + '\n\n' + shareResult.shareUrl)}
+                        className="flex-1 py-2 rounded text-sm font-medium"
+                        style={{ background: '#162518', color: '#E8DFD0', border: 'none', cursor: 'pointer' }}
+                      >
+                        Kopieer brief + link
+                      </button>
+                      <button
+                        onClick={() => { setShareStep('form'); setSelectedContact(null); setApolloSearch(''); setShareContextNote('') }}
+                        className="flex-1 py-2 rounded text-sm font-medium"
+                        style={{ background: '#F2EBE5', color: '#5b5750', border: '1px solid #e0d8d0', cursor: 'pointer' }}
+                      >
+                        Nieuwe aanbieding
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Aanbiedingen overzicht onderaan modal */}
+              {cvShares.length > 0 && (
+                <div style={{ borderTop: '1px solid #e0d8d0' }}>
+                  <div className="px-6 py-3 flex items-center gap-2" style={{ background: '#F2EBE5' }}>
+                    <Eye size={13} style={{ color: '#5b5750' }} />
+                    <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5b5750' }}>
+                      Eerdere aanbiedingen
+                    </span>
+                  </div>
+                  <div className="max-h-44 overflow-y-auto divide-y" style={{ borderColor: '#f0e8e0' }}>
+                    {cvShares.map(s => (
+                      <div key={s.id} className="flex items-center justify-between px-6 py-3">
+                        <div>
+                          <p className="text-sm font-medium text-harvest-dark">{s.apollo_contact_name}</p>
+                          <p className="text-xs text-harvest-muted">
+                            {s.apollo_company} · {new Date(s.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-harvest-muted">
+                            {s.view_count}× bekeken
+                            {s.last_viewed_at && ` · ${new Date(s.last_viewed_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}`}
+                          </span>
+                          <button
+                            onClick={() => navigator.clipboard.writeText(`https://westijn.vercel.app/cv/share/${s.token}`)}
+                            className="text-xs px-2 py-1 rounded"
+                            style={{ background: '#E8E0D8', color: '#5b5750', border: 'none', cursor: 'pointer' }}
+                          >
+                            Kopieer link
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Edit panel — right slide-out drawer */}
       {editPanelOpen && (

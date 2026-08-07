@@ -127,6 +127,25 @@ export interface IntakeFormData {
   self_introduction?: string
 }
 
+export interface CvShare {
+  id: string
+  candidate_id: string
+  token: string
+  apollo_contact_id: string | null
+  apollo_contact_name: string
+  apollo_contact_email: string
+  apollo_company: string
+  harvest_contact: 'jeen' | 'marlie' | 'julieta'
+  cover_letter: string
+  expires_at: string
+  created_by: string | null
+  created_at: string
+  view_count: number
+  last_viewed_at: string | null
+  apollo_draft_id: string | null
+  context_note: string | null
+}
+
 export interface CandidateFormData {
   first_name: string
   last_name: string
