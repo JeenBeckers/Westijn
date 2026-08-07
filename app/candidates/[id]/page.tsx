@@ -808,7 +808,7 @@ export default function CandidateDetailPage() {
                   </span>
                 )}
                 {candidate.status === 'in_behandeling' && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: '#1a2b4b', color: '#fff' }}>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: '#092B13', color: '#fff' }}>
                     In behandeling
                   </span>
                 )}
@@ -823,7 +823,7 @@ export default function CandidateDetailPage() {
                     onClick={() => handleStatusUpdate('in_behandeling')}
                     disabled={statusUpdating}
                     className="px-3 py-1 text-xs rounded border font-medium transition-colors disabled:opacity-60"
-                    style={{ borderColor: '#1a2b4b', color: '#1a2b4b' }}
+                    style={{ borderColor: '#092B13', color: '#092B13' }}
                   >
                     {statusUpdating ? '…' : 'Markeer als in behandeling'}
                   </button>
@@ -843,7 +843,7 @@ export default function CandidateDetailPage() {
                     onClick={() => handleStatusUpdate('in_behandeling')}
                     disabled={statusUpdating}
                     className="px-3 py-1 text-xs rounded border font-medium transition-colors disabled:opacity-60"
-                    style={{ borderColor: '#1a2b4b', color: '#1a2b4b' }}
+                    style={{ borderColor: '#092B13', color: '#092B13' }}
                   >
                     {statusUpdating ? '…' : 'Terug naar bewerken'}
                   </button>
@@ -1058,7 +1058,7 @@ export default function CandidateDetailPage() {
                       <button
                         onClick={openShareModal}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors"
-                        style={{ background: '#1a2b4b', color: '#fff', border: 'none', cursor: 'pointer' }}
+                        style={{ background: '#092B13', color: '#fff', border: 'none', cursor: 'pointer' }}
                       >
                         <Mail size={15} />
                         Aanbieding klaarzetten
@@ -1235,7 +1235,7 @@ export default function CandidateDetailPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="relative w-full max-w-lg rounded-xl shadow-2xl overflow-hidden" style={{ background: '#FFFBF5' }}>
               {/* Modal header */}
-              <div className="flex items-center justify-between px-6 py-4" style={{ background: '#1a2b4b' }}>
+              <div className="flex items-center justify-between px-6 py-4" style={{ background: '#092B13' }}>
                 <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#fff' }}>
                   Aanbieding klaarzetten
                 </span>
@@ -1308,9 +1308,9 @@ export default function CandidateDetailPage() {
                             onClick={() => setHarvestContact(p)}
                             className="flex-1 py-2 rounded text-sm font-medium capitalize transition-colors"
                             style={{
-                              background: harvestContact === p ? '#1a2b4b' : '#F2EBE5',
+                              background: harvestContact === p ? '#092B13' : '#F2EBE5',
                               color: harvestContact === p ? '#fff' : '#5b5750',
-                              border: `1px solid ${harvestContact === p ? '#1a2b4b' : '#e0d8d0'}`,
+                              border: `1px solid ${harvestContact === p ? '#092B13' : '#e0d8d0'}`,
                               cursor: 'pointer',
                             }}
                           >
@@ -1341,7 +1341,7 @@ export default function CandidateDetailPage() {
                       onClick={handleCreateShare}
                       disabled={shareSubmitting || !selectedContact}
                       className="w-full py-2.5 rounded text-sm font-semibold flex items-center justify-center gap-2 transition-opacity"
-                      style={{ background: '#1a2b4b', color: '#fff', border: 'none', cursor: shareSubmitting || !selectedContact ? 'not-allowed' : 'pointer', opacity: shareSubmitting || !selectedContact ? 0.6 : 1 }}
+                      style={{ background: '#092B13', color: '#fff', border: 'none', cursor: shareSubmitting || !selectedContact ? 'not-allowed' : 'pointer', opacity: shareSubmitting || !selectedContact ? 0.6 : 1 }}
                     >
                       {shareSubmitting && <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
                       {shareSubmitting ? 'Brief genereren en link aanmaken…' : 'Aanbieding klaarzetten'}
