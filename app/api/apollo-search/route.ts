@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const apolloKey = process.env.APOLLO_API_KEY
     if (!apolloKey) return Response.json({ contacts: [] })
 
-    const res = await fetch('https://api.apollo.io/api/v1/mixed_people/search', {
+    const res = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         q_keywords: query,
         page: 1,
-        per_page: 8,
+        per_page: 10,
       }),
     })
 
@@ -31,16 +31,28 @@ export async function POST(request: NextRequest) {
     const data = await res.json()
     const contacts = (data.people || []).map((p: {
       id: string
-      name: string
-      email: string
+      first_name?: string
+      last_name?: string
+      last_name_obfuscated?: string
+      name?: string
+      email?: string
+      title?: string
+      has_email?: boolean
       organization?: { name?: string }
       organization_name?: string
-    }) => ({
-      id: p.id,
-      name: p.name,
-      email: p.email || '',
-      organization_name: p.organization?.name || p.organization_name || '',
-    })).filter((c: { email: string }) => c.email)
+    }) => {
+      const firstName = p.first_name || ''
+      const lastName = p.last_name || p.last_name_obfuscated || ''
+      const fullName = p.name || `${firstName} ${lastName}`.trim()
+      return {
+        id: p.id,
+        name: fullName,
+        email: p.email || '',
+        title: p.title || '',
+        organization_name: p.organization?.name || p.organization_name || '',
+        has_email: p.has_email ?? !!p.email,
+      }
+    }).filter((c: { has_email: boolean }) => c.has_email)
 
     return Response.json({ contacts })
   } catch (error) {
