@@ -126,6 +126,23 @@ export default function CandidateDetailPage() {
         .single()
       setCandidate(candidateData)
 
+      // Auto-match to Jordan candidate if not yet linked
+      if (candidateData && !candidateData.jordan_id) {
+        const fullName = `${candidateData.first_name} ${candidateData.last_name}`
+        const matchRes = await fetch(
+          `/api/jordan-link?westijn_name=${encodeURIComponent(fullName)}&westijn_candidate_id=${encodeURIComponent(candidateData.id)}`
+        )
+        if (matchRes.ok) {
+          const matchData = await matchRes.json()
+          if (matchData.auto_linked && matchData.match) {
+            setCandidate(prev => prev ? { ...prev, jordan_id: matchData.match.id } : null)
+            setJordanCandidates(matchData.candidates || [])
+          } else if (matchData.candidates) {
+            setJordanCandidates(matchData.candidates)
+          }
+        }
+      }
+
       const { data: intakeForm } = await supabase
         .from('intake_forms')
         .select('id, completed_at')
@@ -792,8 +809,13 @@ export default function CandidateDetailPage() {
 
   async function loadJordanCandidates() {
     if (jordanCandidates.length > 0) return
-    const res = await fetch('/api/jordan-link')
-    if (res.ok) setJordanCandidates(await res.json())
+    const fullName = candidate ? `${candidate.first_name} ${candidate.last_name}` : ''
+    const res = await fetch(`/api/jordan-link?westijn_name=${encodeURIComponent(fullName)}`)
+    if (res.ok) {
+      const data = await res.json()
+      // Response is either array (no name given) or { candidates } object
+      setJordanCandidates(Array.isArray(data) ? data : (data.candidates || []))
+    }
   }
 
   async function handleJordanLink(jordanId: string | null) {
@@ -824,9 +846,9 @@ export default function CandidateDetailPage() {
     ? jordanCandidates.find(c => c.id === candidate.jordan_id)
     : null
 
-  const filteredJordanCandidates = jordanCandidates.filter(c =>
-    !jordanSearch || c.name.toLowerCase().includes(jordanSearch.toLowerCase()) || c.role.toLowerCase().includes(jordanSearch.toLowerCase())
-  )
+  const filteredJordanCandidates = jordanCandidates
+    .filter(c => !jordanSearch || c.name.toLowerCase().includes(jordanSearch.toLowerCase()) || c.role.toLowerCase().includes(jordanSearch.toLowerCase()))
+    .sort((a, b) => ((b as any).score ?? 0) - ((a as any).score ?? 0))
 
   return (
     <div className="flex min-h-screen">
@@ -1054,17 +1076,26 @@ export default function CandidateDetailPage() {
                               {jordanCandidates.length === 0 && (
                                 <div className="p-2 text-xs text-harvest-muted text-center">Laden…</div>
                               )}
-                              {filteredJordanCandidates.slice(0, 30).map(jc => (
-                                <button
-                                  key={jc.id}
-                                  onClick={() => handleJordanLink(jc.id)}
-                                  disabled={jordanLinking}
-                                  className="w-full text-left px-2 py-1.5 text-xs hover:bg-harvest-bg transition-colors disabled:opacity-50"
-                                >
-                                  <span className="font-medium text-harvest-dark">{jc.name}</span>
-                                  <span className="text-harvest-muted ml-1">· {jc.role}</span>
-                                </button>
-                              ))}
+                              {filteredJordanCandidates.slice(0, 30).map(jc => {
+                                const score = (jc as any).score
+                                const pct = score ? Math.round(score * 100) : null
+                                return (
+                                  <button
+                                    key={jc.id}
+                                    onClick={() => handleJordanLink(jc.id)}
+                                    disabled={jordanLinking}
+                                    className="w-full text-left px-2 py-1.5 text-xs hover:bg-harvest-bg transition-colors disabled:opacity-50 flex items-center gap-1"
+                                  >
+                                    <span className="font-medium text-harvest-dark flex-1">{jc.name}</span>
+                                    <span className="text-harvest-muted">{jc.role}</span>
+                                    {pct !== null && (
+                                      <span className={`ml-1 px-1 rounded text-xs font-mono ${pct >= 90 ? 'bg-green-100 text-green-700' : pct >= 70 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-400'}`}>
+                                        {pct}%
+                                      </span>
+                                    )}
+                                  </button>
+                                )
+                              })}
                             </div>
                             <button
                               onClick={() => { setJordanDropdownOpen(false); setJordanSearch('') }}
