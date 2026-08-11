@@ -41,6 +41,7 @@ export interface Candidate {
   editors: CandidateEditor[]
   invite_id: string | null
   profiles?: Profile
+  jordan_id?: string | null
 }
 
 export interface CVData {

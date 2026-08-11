@@ -98,6 +98,13 @@ export default function CandidateDetailPage() {
   const [versionName, setVersionName] = useState('')
   const [previewVersion, setPreviewVersion] = useState<CvVersion | null>(null)
 
+  // Jordan koppeling
+  const [jordanCandidates, setJordanCandidates] = useState<{ id: string; name: string; role: string; recruit_status: string }[]>([])
+  const [jordanLinking, setJordanLinking] = useState(false)
+  const [jordanLinkError, setJordanLinkError] = useState<string | null>(null)
+  const [jordanDropdownOpen, setJordanDropdownOpen] = useState(false)
+  const [jordanSearch, setJordanSearch] = useState('')
+
   // Claude quality check modal
   const [claudeCheckOpen, setClaudeCheckOpen] = useState(false)
   const [claudeChecking, setClaudeChecking] = useState(false)
@@ -783,6 +790,44 @@ export default function CandidateDetailPage() {
     )
   }
 
+  async function loadJordanCandidates() {
+    if (jordanCandidates.length > 0) return
+    const res = await fetch('/api/jordan-link')
+    if (res.ok) setJordanCandidates(await res.json())
+  }
+
+  async function handleJordanLink(jordanId: string | null) {
+    setJordanLinking(true)
+    setJordanLinkError(null)
+    try {
+      const res = await fetch('/api/jordan-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ westijn_candidate_id: candidate!.id, jordan_candidate_id: jordanId }),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        setJordanLinkError(d.error || 'Koppelen mislukt')
+      } else {
+        setCandidate(prev => prev ? { ...prev, jordan_id: jordanId } : null)
+        setJordanDropdownOpen(false)
+        setJordanSearch('')
+      }
+    } catch (e) {
+      setJordanLinkError(String(e))
+    } finally {
+      setJordanLinking(false)
+    }
+  }
+
+  const linkedJordanCandidate = candidate.jordan_id
+    ? jordanCandidates.find(c => c.id === candidate.jordan_id)
+    : null
+
+  const filteredJordanCandidates = jordanCandidates.filter(c =>
+    !jordanSearch || c.name.toLowerCase().includes(jordanSearch.toLowerCase()) || c.role.toLowerCase().includes(jordanSearch.toLowerCase())
+  )
+
   return (
     <div className="flex min-h-screen">
       <Sidebar profile={profile} />
@@ -952,6 +997,86 @@ export default function CandidateDetailPage() {
                       <Globe size={14} />
                       <span>{candidate.language === 'nl' ? 'Nederlands' : 'English'}</span>
                     </div>
+                  </div>
+                </Card>
+
+                {/* Jordan koppeling */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Jordan koppeling</CardTitle>
+                  </CardHeader>
+                  <div className="space-y-2 text-sm">
+                    {candidate.jordan_id ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 p-2 rounded bg-harvest-bg border border-harvest-brown">
+                          <span className="flex-1 text-harvest-dark font-medium text-xs">
+                            {linkedJordanCandidate ? linkedJordanCandidate.name : candidate.jordan_id}
+                            {linkedJordanCandidate && <span className="block text-harvest-muted font-normal">{linkedJordanCandidate.role}</span>}
+                          </span>
+                          <a
+                            href={`${process.env.NEXT_PUBLIC_JORDAN_URL || 'https://harvest-cv-tool.vercel.app'}#${candidate.jordan_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded border border-harvest-green text-harvest-green hover:bg-harvest-green hover:text-white transition-colors"
+                          >
+                            <ArrowUpRight size={11} /> Open in Jordan
+                          </a>
+                        </div>
+                        <button
+                          onClick={() => handleJordanLink(null)}
+                          disabled={jordanLinking}
+                          className="text-xs text-harvest-muted hover:text-harvest-error transition-colors disabled:opacity-50"
+                        >
+                          {jordanLinking ? 'Bezig…' : 'Koppeling verwijderen'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-harvest-muted text-xs">Nog niet gekoppeld aan een Jordan kandidaat.</p>
+                        {!jordanDropdownOpen ? (
+                          <button
+                            onClick={() => { setJordanDropdownOpen(true); loadJordanCandidates() }}
+                            className="w-full flex items-center justify-center gap-1 px-3 py-2 text-xs rounded border border-harvest-muted text-harvest-muted hover:border-harvest-green hover:text-harvest-green transition-colors"
+                          >
+                            Koppel aan Jordan kandidaat
+                          </button>
+                        ) : (
+                          <div className="space-y-1">
+                            <input
+                              autoFocus
+                              type="text"
+                              placeholder="Zoek op naam of rol…"
+                              value={jordanSearch}
+                              onChange={e => setJordanSearch(e.target.value)}
+                              className="w-full px-2 py-1.5 text-xs border border-harvest-muted rounded focus:outline-none focus:border-harvest-green"
+                            />
+                            <div className="max-h-48 overflow-y-auto border border-harvest-muted rounded divide-y divide-harvest-muted">
+                              {jordanCandidates.length === 0 && (
+                                <div className="p-2 text-xs text-harvest-muted text-center">Laden…</div>
+                              )}
+                              {filteredJordanCandidates.slice(0, 30).map(jc => (
+                                <button
+                                  key={jc.id}
+                                  onClick={() => handleJordanLink(jc.id)}
+                                  disabled={jordanLinking}
+                                  className="w-full text-left px-2 py-1.5 text-xs hover:bg-harvest-bg transition-colors disabled:opacity-50"
+                                >
+                                  <span className="font-medium text-harvest-dark">{jc.name}</span>
+                                  <span className="text-harvest-muted ml-1">· {jc.role}</span>
+                                </button>
+                              ))}
+                            </div>
+                            <button
+                              onClick={() => { setJordanDropdownOpen(false); setJordanSearch('') }}
+                              className="text-xs text-harvest-muted hover:text-harvest-dark"
+                            >
+                              Annuleren
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {jordanLinkError && <p className="text-xs text-harvest-error">{jordanLinkError}</p>}
                   </div>
                 </Card>
 
