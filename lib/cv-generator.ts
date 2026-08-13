@@ -72,11 +72,16 @@ The "Over [naam]" / review section must follow this exact style, based on real H
 - NEVER use hollow phrases like "passie voor", "hands-on", "gedreven professional", "track record".
 - Write 2-4 natural paragraphs. No bullet points in the review section.
 
-NO FABRICATION RULE (strictly enforced — zero tolerance):
-- NEVER invent, fabricate, or assume any work experience, projects, or roles.
-- Every work experience entry and every project entry MUST come verbatim from the source data provided.
+NO FABRICATION RULE (strictly enforced — zero tolerance — overrides ALL other instructions):
+- NEVER invent, fabricate, or assume ANY content: degrees, institutions, employers, job titles, project names, or any factual detail.
+- Every education entry, work experience entry, and project entry MUST exist verbatim in the source data provided.
+- Even if degrees seem unusual for the role (e.g. Natural and Social Sciences, Bioinformatics, Humanities) — show them EXACTLY as stated. Do NOT replace with a more "fitting" degree.
+- Research internships, thesis projects, and teaching assistant roles are ALL valid work experience entries — include them as-is.
 - If information is incomplete or ambiguous, use only what is explicitly stated. Do NOT fill gaps with plausible-sounding details.
-- This rule overrides all other instructions: if no work experience or projects are present in the source data, leave those sections empty — do not add examples.
+- If no work experience or projects are in the source data, leave those sections empty.
+
+PRE-GENERATION VERIFICATION (mandatory — do this mentally before writing any HTML):
+Before writing the HTML, list for yourself: (A) every degree from the source, (B) every employer/organization/internship/research position, (C) every project. Only those items may appear in the CV — no others, no substitutions.
 
 LOCATION RULE (strictly enforced):
 - Use ONLY the city name. Examples: "Rotterdam", "Amsterdam", "Eindhoven", "Delft".
@@ -330,14 +335,14 @@ body { background: #E8E0D8; font-family: 'Libre Franklin', sans-serif; padding: 
           <div class="kw"><span class="tag">Python</span><span class="tag">Machine Learning</span><span class="tag">NLP</span></div>
 
 EDUCATION RULES (strictly enforced):
-- ALWAYS include BSc and MSc degrees — these are NEVER cut, even if the 2600 char limit is tight.
-- If the character limit is at risk, shorten the review text instead — education degrees take priority.
-- Within education entries: prefer higher degrees (MSc > BSc > HBO > MBO > VWO/Havo) and more recent over older.
-- For EVERY education entry: always show institution, title, period, courses line, and .kw tags. Never omit the courses line or tags.
-- The courses line must list 3-5 relevant courses from the programme. If not known, infer typical courses for that degree.
-- The .kw tags must reflect the hard technical skills from that degree (programming languages, tools, methods). Max 5 tags per entry.
+- ALWAYS include ALL university degrees (BSc, MSc, HBO) from the source — these are NEVER cut, even if the 2600 char limit is tight.
+- If the character limit is at risk, shorten the review text first — then shorten degree descriptions — but NEVER drop a degree and NEVER replace it with a different one.
+- The exact institution and degree name from the source MUST appear. If the source says "BSc Natural and Social Sciences, Universiteit van Amsterdam", that is what goes in the CV — not "BSc Technische Informatica" or any other substitution.
+- If a candidate has multiple MSc degrees, show ALL of them.
+- Courses line: ONLY list courses that are explicitly mentioned in the source data. If no courses are listed, omit the courses line entirely — do NOT infer or invent courses.
+- The .kw tags must reflect hard technical skills from that degree (programming languages, tools, methods). Max 5 tags per entry. Only skills explicitly mentioned in the source.
 - Never omit a university degree to make room for secondary school or short courses.
-- If both BSc and MSc are present, always show both. A completed HBO counts as equivalent to BSc.
+- MULTIPLE DEGREES AND THE 2600 CHAR LIMIT: When a candidate has 3+ degrees, use a compact format — shorter descriptions (1 sentence max), fewer course bullets — to fit all degrees. Never drop a degree to save space.
         </div>
       </div>
     </div>
@@ -469,7 +474,7 @@ INSTRUCTIONS FOR FILLING IN THE TEMPLATE:
 4. Page 1 right column: "${reviewLabel}" text + Education. Count chars, stay ≤ 2600. When counting characters for the 2600 limit on page 1: if you are close to the limit, shorten the review paragraphs first. Education (BSc/MSc) is non-negotiable.
 5. Page 2 right column: Skills (pills) + Work Experience. Count chars, stay ≤ 2600. Cut bullet points or entries if needed.
 6. Page 3 right column: Projects only. Count chars, stay ≤ 2600. Cut descriptions if needed.
-7. If data is missing for a section, use reasonable professional placeholders.
+7. If data is missing for a section, leave it empty or minimal — NEVER invent placeholder content. A missing projects section must show "0 projecten", not made-up projects.
 8. The output must be a single complete HTML document with NO placeholders remaining.
 9. Output ONLY the HTML. Do not add any text before <!DOCTYPE html> or after </html>.${additionalInstructions ? `
 
